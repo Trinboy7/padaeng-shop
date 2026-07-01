@@ -30,28 +30,34 @@
         let receiptHistory = JSON.parse(localStorage.getItem('receiptHistory') || '[]');
         let activeOrders = {}; 
 
-        socket.on('update-kitchen', (newOrder) => {
-            const table = newOrder.table;
-            if (!activeOrders[table]) activeOrders[table] = { items: {}, table: table };
-            newOrder.items.forEach(item => {
-                const key = item.name + (item.note || "");
-                if (activeOrders[table].items[key]) {
-                    activeOrders[table].items[key].qty += item.qty;
-                } else {
-                    activeOrders[table].items[key] = { ...item };
-                }
-            });
-            renderOrders();
-        });
+        // ค้นหาฟังก์ชันนี้ใน kitchen.html แล้วแก้ไขให้เป็นแบบนี้:
+socket.on('update-kitchen', (newOrder) => {
+    // เปลี่ยนจาก newOrder.table เป็น newOrder.name ที่ส่งมาจากหน้า index.html
+    const table = newOrder.name || "ไม่ระบุชื่อ"; 
+    
+    if (!activeOrders[table]) activeOrders[table] = { items: {}, table: table };
+    
+    newOrder.items.forEach(item => {
+        const key = item.name + (item.note || "");
+        if (activeOrders[table].items[key]) {
+            activeOrders[table].items[key].qty += item.qty;
+        } else {
+            activeOrders[table].items[key] = { ...item };
+        }
+    });
+    renderOrders();
+});
 
         function renderOrders() {
             const list = document.getElementById('order-list');
             list.innerHTML = "";
             const tables = Object.keys(activeOrders);
+            
             if(tables.length === 0) {
                 list.innerHTML = `<p class="col-span-full text-center text-red-300 italic">ไม่มีออเดอร์ในขณะนี้</p>`;
                 return;
             }
+
             tables.forEach(table => {
                 const order = activeOrders[table];
                 let totalAmount = 0;
@@ -59,6 +65,7 @@
                     totalAmount += (item.price * item.qty);
                     return `<li class="flex justify-between text-sm border-b py-1"><span>${item.name}</span><span class="font-bold">x${item.qty}</span></li>`;
                 }).join('');
+
                 const div = document.createElement('div');
                 div.className = "bg-white text-red-900 p-6 rounded-2xl shadow-xl border-l-8 border-red-600";
                 div.innerHTML = `
@@ -83,7 +90,7 @@
             if(confirm('ยืนยันการลบรายการนี้?')) {
                 receiptHistory = receiptHistory.filter(item => item.timestamp !== timestamp);
                 localStorage.setItem('receiptHistory', JSON.stringify(receiptHistory));
-                toggleReceiptModal(); // Refresh modal
+                toggleReceiptModal();
                 toggleReceiptModal();
             }
         }
