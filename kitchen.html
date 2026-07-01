@@ -11,15 +11,15 @@
 
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-3xl font-bold">ออเดอร์ที่ต้องทำ</h1>
-        <button onclick="toggleReceiptModal()" class="bg-amber-500 hover:bg-amber-600 px-6 py-2 rounded-full font-bold shadow-lg">ดูสรุปยอดขายรายโต๊ะ</button>
+        <button onclick="toggleReceiptModal()" class="bg-amber-500 hover:bg-amber-600 px-6 py-2 rounded-full font-bold shadow-lg">ดูสรุปยอดขาย</button>
     </div>
 
     <div id="order-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
 
     <div id="receiptModal" class="hidden fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4">
         <div class="bg-white text-red-900 rounded-3xl p-6 w-full max-w-sm max-h-[80vh] overflow-y-auto">
-            <h2 class="text-2xl font-bold mb-4 text-center">สรุปยอดขายแยกโต๊ะ</h2>
-            <div id="receiptList" class="space-y-3"></div>
+            <h2 class="text-2xl font-bold mb-4 text-center">สรุปยอดขาย</h2>
+            <div id="receiptList" class="space-y-4"></div>
             <button onclick="toggleReceiptModal()" class="mt-6 w-full py-3 bg-red-600 text-white rounded-xl font-bold">ปิด</button>
         </div>
     </div>
@@ -33,7 +33,6 @@
         socket.on('update-kitchen', (newOrder) => {
             const table = newOrder.table;
             if (!activeOrders[table]) activeOrders[table] = { items: {}, table: table };
-            
             newOrder.items.forEach(item => {
                 const key = item.name + (item.note || "");
                 if (activeOrders[table].items[key]) {
@@ -48,48 +47,72 @@
         function renderOrders() {
             const list = document.getElementById('order-list');
             list.innerHTML = "";
-            Object.keys(activeOrders).forEach(table => {
+            const tables = Object.keys(activeOrders);
+            if(tables.length === 0) {
+                list.innerHTML = `<p class="col-span-full text-center text-red-300 italic">ไม่มีออเดอร์ในขณะนี้</p>`;
+                return;
+            }
+            tables.forEach(table => {
                 const order = activeOrders[table];
                 let totalAmount = 0;
                 const itemsHtml = Object.values(order.items).map(item => {
                     totalAmount += (item.price * item.qty);
-                    return `<li class="flex justify-between text-sm border-b py-1"><span>${item.name} ${item.note ? '('+item.note+')' : ''}</span><span class="font-bold">x${item.qty}</span></li>`;
+                    return `<li class="flex justify-between text-sm border-b py-1"><span>${item.name}</span><span class="font-bold">x${item.qty}</span></li>`;
                 }).join('');
-
                 const div = document.createElement('div');
                 div.className = "bg-white text-red-900 p-6 rounded-2xl shadow-xl border-l-8 border-red-600";
                 div.innerHTML = `
-                    <h2 class="text-2xl font-bold mb-4">โต๊ะที่ ${table}</h2>
+                    <h2 class="text-2xl font-bold mb-4">${table}</h2>
                     <ul class="mb-4">${itemsHtml}</ul>
                     <div class="bg-amber-100 p-3 rounded-lg text-center font-bold text-xl mb-4">รวม: ${totalAmount} บาท</div>
-                    <button onclick="finishOrder('${table}', ${totalAmount})" class="w-full bg-red-600 text-white font-bold py-3 rounded-xl">เสิร์ฟแล้ว</button>
+                    <button onclick="finishOrder('${table}', ${totalAmount})" class="w-full bg-red-600 text-white font-bold py-3 rounded-xl hover:bg-red-700 transition">เสิร์ฟแล้ว</button>
                 `;
                 list.appendChild(div);
             });
         }
 
         function finishOrder(table, total) {
-            // บันทึกเข้าประวัติ
-            receiptHistory.push({ table, total, time: new Date().toLocaleTimeString() });
+            const today = new Date().toLocaleDateString('th-TH');
+            receiptHistory.push({ table, total, date: today, timestamp: Date.now() });
             localStorage.setItem('receiptHistory', JSON.stringify(receiptHistory));
             delete activeOrders[table];
             renderOrders();
+        }
+
+        function deleteRecord(timestamp) {
+            if(confirm('ยืนยันการลบรายการนี้?')) {
+                receiptHistory = receiptHistory.filter(item => item.timestamp !== timestamp);
+                localStorage.setItem('receiptHistory', JSON.stringify(receiptHistory));
+                toggleReceiptModal(); // Refresh modal
+                toggleReceiptModal();
+            }
         }
 
         function toggleReceiptModal() {
             const modal = document.getElementById('receiptModal');
             const list = document.getElementById('receiptList');
             const grouped = receiptHistory.reduce((acc, curr) => {
-                acc[curr.table] = (acc[curr.table] || 0) + curr.total;
+                if (!acc[curr.date]) acc[curr.date] = [];
+                acc[curr.date].push(curr);
                 return acc;
             }, {});
 
-            list.innerHTML = Object.keys(grouped).map(table => `
-                <div class="border-b pb-2 flex justify-between">
-                    <span class="font-bold">โต๊ะที่ ${table}</span>
-                    <span class="text-red-600 font-bold">${grouped[table]} บาท</span>
-                </div>
-            `).join('') || '<p class="text-center text-gray-400">ยังไม่มีประวัติการขาย</p>';
+            let html = '';
+            for (const date in grouped) {
+                let dailyTotal = 0;
+                html += `<h3 class="font-bold text-lg bg-gray-100 p-2 rounded mt-2">วันที่: ${date}</h3>`;
+                grouped[date].forEach(item => {
+                    dailyTotal += item.total;
+                    html += `
+                        <div class="flex justify-between items-center py-1 border-b text-sm">
+                            <span>${item.table} (${item.total} บาท)</span>
+                            <button onclick="deleteRecord(${item.timestamp})" class="text-red-500 font-bold">ลบ</button>
+                        </div>
+                    `;
+                });
+                html += `<div class="text-right font-bold text-red-600 mt-1 mb-3">รวมวัน: ${dailyTotal} บาท</div>`;
+            }
+            list.innerHTML = html || '<p class="text-center text-gray-400">ยังไม่มีประวัติการขาย</p>';
             modal.classList.toggle('hidden');
         }
     </script>
