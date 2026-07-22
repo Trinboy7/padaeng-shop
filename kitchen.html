@@ -9,19 +9,22 @@
 </head>
 <body class="bg-red-950 min-h-screen text-white p-5">
     <div class="flex justify-between items-center mb-6">
-        <h1 class="text-3xl font-bold">หน้าจอห้องครัว</h1>
+        <div>
+            <h1 class="text-3xl font-bold">หน้าจอห้องครัว</h1>
+            <p id="currentDateDisplay" class="text-amber-300 text-sm mt-1"></p>
+        </div>
         <div class="flex gap-2">
             <a href="admin.html" class="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-full font-bold shadow-lg transition">จัดการเมนู/สต็อก</a>
-            <button onclick="toggleReceiptModal()" class="bg-amber-500 hover:bg-amber-600 px-6 py-2 rounded-full font-bold shadow-lg transition">สรุปยอดขาย (รายวัน)</button>
+            <button onclick="toggleReceiptModal()" class="bg-amber-500 hover:bg-amber-600 px-6 py-2 rounded-full font-bold shadow-lg transition">สรุปยอดขายย้อนหลัง</button>
         </div>
     </div>
 
     <div id="order-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
 
-    <!-- Modal สรุปยอดขายรายวัน -->
+    <!-- Modal สรุปยอดขายรายวันตามปฏิทิน -->
     <div id="receiptModal" class="hidden fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4">
         <div class="bg-white text-red-900 rounded-3xl p-6 w-full max-w-md max-h-[85vh] overflow-y-auto shadow-2xl">
-            <h2 class="text-2xl font-bold mb-4 text-center">📈 สรุปยอดขายย้อนหลัง</h2>
+            <h2 class="text-2xl font-bold mb-4 text-center">📅 ประวัติยอดขายแยกตามวัน</h2>
             <div id="receiptList" class="space-y-4"></div>
             <button onclick="toggleReceiptModal()" class="mt-6 w-full py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition">ปิด</button>
         </div>
@@ -32,6 +35,14 @@
         const socket = io();
         let receiptHistory = JSON.parse(localStorage.getItem('receiptHistory') || '[]');
         let activeOrders = {}; 
+
+        // แสดงวันที่ปัจจุบันตามปฏิทินจริงในประเทศไทย (รูปแบบ พ.ศ.)
+        const todayDateStr = new Date().toLocaleDateString('th-TH', {
+            year: 'numeric',
+            month: 'numeric',
+            day: 'numeric'
+        });
+        document.getElementById('currentDateDisplay').innerText = `📅 วันที่ปัจจุบัน: ${todayDateStr}`;
 
         socket.on('update-kitchen', (newOrder) => {
             activeOrders[newOrder.id] = newOrder;
@@ -87,15 +98,19 @@
             const order = activeOrders[id];
             socket.emit('update-status', { orderId: id, status: 'เสิร์ฟแล้ว' });
             
-            // บันทึกวันที่ปัจจุบันในรูปแบบ วัน/เดือน/ปี (เช่น 22/7/2026) อัตโนมัติ
-            const today = new Date().toLocaleDateString('th-TH');
+            // บันทึกวันที่ตามปฏิทินจริงของออเดอร์นี้โดยอัตโนมัติ
+            const orderDateStr = new Date().toLocaleDateString('th-TH', {
+                year: 'numeric',
+                month: 'numeric',
+                day: 'numeric'
+            });
             
             receiptHistory.push({ 
                 table: order.table, 
                 name: order.name, 
                 items: order.items, 
                 total, 
-                date: today, 
+                date: orderDateStr, 
                 timestamp: Date.now() 
             });
             
@@ -109,7 +124,7 @@
                 receiptHistory = receiptHistory.filter(item => item.timestamp !== timestamp);
                 localStorage.setItem('receiptHistory', JSON.stringify(receiptHistory));
                 toggleReceiptModal();
-                toggleReceiptModal(); // เปิด Modal รีเฟรชข้อมูลใหม่
+                toggleReceiptModal(); 
             }
         }
 
@@ -123,7 +138,7 @@
                 return;
             }
 
-            // จัดกลุ่มยอดขายตามวันที่ (Group by Date)
+            // จัดกลุ่มและเรียงลำดับยอดขายตามวันที่ปฏิทินย้อนหลัง
             const grouped = receiptHistory.reduce((acc, curr) => {
                 if (!acc[curr.date]) acc[curr.date] = [];
                 acc[curr.date].push(curr);
@@ -133,10 +148,15 @@
             let html = '';
             let grandTotalAll = 0;
 
+            // วนลูปสร้างรายการแยกตามแต่ละวัน
             for (const date in grouped) {
                 let dailyTotal = 0;
-                html += `<div class="mb-4 border-2 border-red-100 rounded-2xl p-3 bg-red-50/30">`;
-                html += `<h3 class="font-bold text-base text-red-700 bg-red-100 px-3 py-1 rounded-xl mb-2 flex justify-between"><span>📅 วันที่: ${date}</span></h3>`;
+                let isToday = (date === todayDateStr);
+                
+                html += `<div class="mb-4 border-2 ${isToday ? 'border-red-500 bg-red-50/20' : 'border-gray-200 bg-gray-50'} rounded-2xl p-3">`;
+                html += `<h3 class="font-bold text-base text-red-700 bg-red-100 px-3 py-1 rounded-xl mb-2 flex justify-between items-center">
+                    <span>📅 วันที่: ${date} ${isToday ? '(วันนี้)' : ''}</span>
+                </h3>`;
                 
                 grouped[date].forEach(item => {
                     dailyTotal += item.total;
@@ -159,7 +179,7 @@
                 html += `</div>`;
             }
 
-            list.innerHTML = `<div class="bg-amber-100 p-3 rounded-2xl text-center font-bold text-lg text-amber-900 mb-4">💰 ยอดขายสะสมทั้งหมด: ${grandTotalAll} บาท</div>` + html;
+            list.innerHTML = `<div class="bg-amber-100 p-3 rounded-2xl text-center font-bold text-lg text-amber-900 mb-4">💰 ยอดขายสะสมทุกวันรวมทั้งหมด: ${grandTotalAll} บาท</div>` + html;
             modal.classList.toggle('hidden');
         }
     </script>
