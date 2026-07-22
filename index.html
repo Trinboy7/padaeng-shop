@@ -39,38 +39,19 @@
     <div id="contentFood" class="grid grid-cols-2 gap-4 p-4"></div>
     <div id="contentDrink" class="grid grid-cols-2 gap-4 p-4 hidden"></div>
     
-    <!-- Order Modal (เพิ่ม Option) -->
+    <!-- Order Modal (นำเลือกระดับความเผ็ดและพิเศษออกแล้ว) -->
     <div id="orderModal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-3xl p-6 w-full max-w-sm">
-            <h2 id="modalTitle" class="text-xl font-bold mb-4"></h2>
-            
-            <div class="space-y-4 mb-6">
-                <div>
-                    <p class="font-bold text-sm mb-2">ระดับความเผ็ด</p>
-                    <div class="flex gap-4 text-sm">
-                        <label><input type="radio" name="spicy" value="เผ็ดน้อย" class="mr-1">เผ็ดน้อย</label>
-                        <label><input type="radio" name="spicy" value="เผ็ดปกติ" checked class="mr-1">เผ็ดปกติ</label>
-                        <label><input type="radio" name="spicy" value="เผ็ดมาก" class="mr-1">เผ็ดมาก</label>
-                    </div>
-                </div>
-                <div>
-                    <p class="font-bold text-sm mb-2">พิเศษ (+10 บาท)</p>
-                    <div class="grid grid-cols-2 gap-2 text-sm">
-                        <label><input type="checkbox" name="extra" value="ไข่ดาว" class="mr-1">ไข่ดาว</label>
-                        <label><input type="checkbox" name="extra" value="ไข่เจียว" class="mr-1">ไข่เจียว</label>
-                        <label><input type="checkbox" name="extra" value="ไม่ใส่ผัก" class="mr-1">ไม่ใส่ผัก</label>
-                    </div>
-                </div>
-            </div>
+            <h2 id="modalTitle" class="text-xl font-bold mb-6 text-center"></h2>
 
-            <div class="flex items-center gap-4 mb-6">
-                <button onclick="changeQty(-1)" class="w-10 h-10 bg-gray-200 rounded-full font-bold">-</button>
-                <span id="qty" class="text-xl font-bold">1</span>
-                <button onclick="changeQty(1)" class="w-10 h-10 bg-orange-500 text-white rounded-full font-bold">+</button>
+            <div class="flex items-center justify-center gap-4 mb-8">
+                <button onclick="changeQty(-1)" class="w-12 h-12 bg-gray-200 rounded-full font-bold text-lg">-</button>
+                <span id="qty" class="text-2xl font-bold w-10 text-center">1</span>
+                <button onclick="changeQty(1)" class="w-12 h-12 bg-orange-500 text-white rounded-full font-bold text-lg">+</button>
             </div>
             
             <div class="flex gap-2">
-                <button onclick="closeModal()" class="flex-1 py-3 bg-gray-200 rounded-2xl">ยกเลิก</button>
+                <button onclick="closeModal()" class="flex-1 py-3 bg-gray-200 rounded-2xl font-bold">ยกเลิก</button>
                 <button onclick="addToCart()" class="flex-1 py-3 bg-orange-500 text-white rounded-2xl font-bold">ยืนยัน</button>
             </div>
         </div>
@@ -114,36 +95,12 @@
         function closeModal() { document.getElementById('orderModal').classList.add('hidden'); }
         
         function addToCart() { 
-            // ดึงค่าระดับความเผ็ดที่เลือก
-            const spicySelected = document.querySelector('input[name="spicy"]:checked');
-            const spicy = spicySelected ? spicySelected.value : "";
-            
-            // ดึงค่าตัวเลือกพิเศษที่ติ๊ก (ถ้ามี)
-            const extraSelected = document.querySelectorAll('input[name="extra"]:checked');
-            let extras = [];
-            let extraPrice = 0;
-            extraSelected.forEach(el => {
-                extras.push(el.value);
-                if (el.value === "ไข่ดาว" || el.value === "ไข่เจียว") {
-                    extraPrice += 10; // เพิ่มราคาตามเงื่อนไขพิเศษ
-                }
-            });
-
-            const finalPrice = currentPrice + extraPrice;
-            
-            // รวมรายละเอียดหมายเหตุหรืออوبชันเสริม
-            let noteText = spicy;
-            if (extras.length > 0) {
-                noteText += (noteText ? ", " : "") + extras.join(", ");
-            }
-
             cart.push({ 
                 name: currentMenu, 
-                price: finalPrice, 
+                price: currentPrice, 
                 qty: quantity, 
-                note: noteText 
+                note: "" 
             }); 
-
             updateUI(); 
             closeModal(); 
         }
@@ -154,7 +111,7 @@
             let totalAll = 0; 
             document.getElementById('cartList').innerHTML = cart.map(i => { 
                 totalAll += (i.price * i.qty); 
-                return `<div class="text-sm border-b pb-2 flex justify-between"><div><b>${i.name} x${i.qty}</b><br><span class="text-xs text-gray-500">${i.note}</span></div> <span>${i.price * i.qty} บ.</span></div>`; 
+                return `<div class="text-sm border-b pb-2 flex justify-between"><div><b>${i.name} x${i.qty}</b></div> <span>${i.price * i.qty} บ.</span></div>`; 
             }).join('') + `<div class="text-right font-bold text-lg mt-2">รวม: ${totalAll} บาท</div>`; 
             document.getElementById('cartModal').classList.toggle('hidden'); 
         }
