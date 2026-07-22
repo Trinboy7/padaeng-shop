@@ -165,7 +165,7 @@
         foods.forEach(f => document.getElementById('contentFood').innerHTML += `<div class="bg-white rounded-2xl shadow-sm border p-2 flex flex-col"><img src="${f.img}" class="menu-img"><h2 class="font-bold text-sm mt-2">${f.name}</h2><p class="text-red-600 font-bold text-sm">${f.price} บาท</p><button onclick="openModal('${f.name}', ${f.price}, 'food')" class="mt-auto bg-red-600 text-white w-full py-2 rounded-xl text-xs font-bold mt-2 hover:bg-red-700 transition">สั่งเลย</button></div>`);
         drinks.forEach(d => document.getElementById('contentDrink').innerHTML += `<div class="bg-white rounded-2xl shadow-sm border p-2 flex flex-col"><img src="${d.img}" class="menu-img"><h2 class="font-bold text-sm mt-2">${d.name}</h2><p class="text-red-600 font-bold text-sm">${d.price} บาท</p><button onclick="openModal('${d.name}', ${d.price}, 'drink')" class="mt-auto bg-red-600 text-white w-full py-2 rounded-xl text-xs font-bold mt-2 hover:bg-red-700 transition">สั่งเลย</button></div>`);
 
-        // ดักฟังเมื่อครัวกดเสิร์ฟอาหารแล้ว
+        // ดักฟังเมื่อครัวกดเสิร์ฟอาหารแล้ว (อัปเดตข้อมูลและรีเฟรชหน้าต่างติดตามทันที)
         socket.on('order-finished', (data) => {
             myOrders = myOrders.map(o => {
                 if (o.id === data.orderId || o.name === data.name) {
@@ -174,6 +174,12 @@
                 return o;
             });
             localStorage.setItem('myOrders', JSON.stringify(myOrders));
+            
+            // ถ้าร้านเปิดหน้าต่างติดตามสถานะอยู่ ให้รีเฟรชรายการในจอทันที
+            const trackingModal = document.getElementById('trackingModal');
+            if (!trackingModal.classList.contains('hidden')) {
+                renderTrackingList();
+            }
         });
 
         function setName() {
@@ -288,6 +294,11 @@
         }
 
         function toggleTrackingModal() {
+            renderTrackingList();
+            document.getElementById('trackingModal').classList.toggle('hidden');
+        }
+
+        function renderTrackingList() {
             const list = document.getElementById('trackingList');
             if(myOrders.length === 0) {
                 list.innerHTML = `<p class="text-center text-gray-400 italic">ยังไม่มีประวัติการสั่งซื้อ</p>`;
@@ -295,9 +306,9 @@
                 list.innerHTML = myOrders.map(o => {
                     let itemsStr = o.items.map(i => `${i.name} x${i.qty} (${i.note || '-'})`).join('<br>');
                     let canCancel = o.status === 'รอดำเนินการ';
-                    let statusColor = o.status === 'เสิร์ฟแล้ว' ? 'text-green-600' : 'text-amber-600';
+                    let statusColor = o.status === 'เสิร์ฟแล้ว' ? 'text-green-600 font-bold' : 'text-amber-600 font-bold';
                     return `
-                        <div class="border rounded-2xl p-3 text-sm bg-gray-50 shadow-sm relative">
+                        <div class="border rounded-2xl p-3 text-sm bg-gray-50 shadow-sm relative mb-2">
                             <div class="flex justify-between font-bold mb-1">
                                 <span>ออเดอร์ #${o.id.slice(-4)}</span>
                                 <span class="${statusColor}">${o.status}</span>
@@ -308,7 +319,6 @@
                     `;
                 }).join('');
             }
-            document.getElementById('trackingModal').classList.toggle('hidden');
         }
 
         function cancelOrder(orderId) {
@@ -319,8 +329,7 @@
                 }
                 myOrders = myOrders.filter(o => o.id !== orderId);
                 localStorage.setItem('myOrders', JSON.stringify(myOrders));
-                toggleTrackingModal();
-                toggleTrackingModal();
+                renderTrackingList();
                 alert("ยกเลิกออเดอร์เรียบร้อยแล้ว");
             }
         }
