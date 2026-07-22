@@ -12,7 +12,7 @@ io.on('connection', (socket) => {
     // รับคำสั่งยกเลิกออเดอร์จากลูกค้า
     socket.on('cancel-order', (data) => io.emit('cancel-kitchen', data));
 
-    // รับคำสั่งเมื่อครัวกดเสิร์ฟอาหาร แล้วส่งกระจายบอกทุกลูกค้าทันที
+    // รับคำสั่งเมื่อครัวกดเสิร์ฟอาหาร แล้วส่งบอกลูกค้าทุกคนทันที
     socket.on('finish-order', (data) => {
         io.emit('order-finished', data);
     });
