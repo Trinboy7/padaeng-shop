@@ -5,13 +5,25 @@
     <title>หน้าจอห้องครัว - แซ่บเวอร์</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700&display=swap" rel="stylesheet">
-    <style> body { font-family: 'Sarabun', sans-serif; } </style>
+    <style> 
+        body { font-family: 'Sarabun', sans-serif; } 
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .animate-slide-in {
+            animation: slideIn 0.4s ease-out forwards;
+        }
+    </style>
 </head>
-<body class="bg-red-950 min-h-screen text-white p-5">
+<body class="bg-red-950 min-h-screen text-white p-5 relative overflow-x-hidden">
+
+    <!-- กล่องแจ้งเตือนมุมขวาบนเวลาลูกค้ายกเลิกออเดอร์ -->
+    <div id="toastContainer" class="fixed top-5 right-5 z-[200] space-y-2"></div>
 
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-3xl font-bold">ออเดอร์ที่ต้องทำ</h1>
-        <button onclick="toggleReceiptModal()" class="bg-amber-500 hover:bg-amber-600 px-6 py-2 rounded-full font-bold shadow-lg">ดูสรุปยอดขาย</button>
+        <button onclick="toggleReceiptModal()" class="bg-amber-500 hover:bg-amber-600 px-6 py-2 rounded-full font-bold shadow-lg transition">ดูสรุปยอดขาย</button>
     </div>
 
     <div id="order-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
@@ -30,37 +42,64 @@
         let receiptHistory = JSON.parse(localStorage.getItem('receiptHistory') || '[]');
         let activeOrders = {}; 
 
+        // รับออเดอร์ใหม่
         socket.on('update-kitchen', (newOrder) => {
             const table = newOrder.name || "ไม่ระบุชื่อ"; 
+            const orderKeyId = newOrder.id || table; // ใช้ id ออเดอร์เป็นหลัก
             
-            if (!activeOrders[table]) activeOrders[table] = { items: {}, table: table };
+            if (!activeOrders[orderKeyId]) activeOrders[orderKeyId] = { items: {}, table: table, id: newOrder.id };
             
             newOrder.items.forEach(item => {
                 const key = item.name + (item.note || "");
-                if (activeOrders[table].items[key]) {
-                    activeOrders[table].items[key].qty += item.qty;
+                if (activeOrders[orderKeyId].items[key]) {
+                    activeOrders[orderKeyId].items[key].qty += item.qty;
                 } else {
-                    activeOrders[table].items[key] = { ...item };
+                    activeOrders[orderKeyId].items[key] = { ...item };
                 }
             });
             renderOrders();
         });
 
+        // จำลองฟังชันก์รับอีเวนต์ยกเลิกออเดอร์จากลูกค้า (ถ้าต่อ Server Socket จริง สามารถส่ง event มาได้เลย)
+        // ในที่นี้เราดึงข้อมูลผ่านการซิงค์ หรือถ้าใช้หน้าเว็บเดียวกันจำลอง ให้ใช้ socket ฟัง event 'cancel-order'
+        socket.on('cancel-kitchen', (data) => {
+            // ลบออเดอร์ออกจากหน้าจอครัวทันที
+            for (let key in activeOrders) {
+                if (activeOrders[key].id === data.orderId || activeOrders[key].table === data.name) {
+                    delete activeOrders[key];
+                }
+            }
+            renderOrders();
+            showToast(`ลูกค้า "${data.name}" ได้ยกเลิกออเดอร์แล้ว!`);
+        });
+
+        function showToast(message) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = "bg-red-600 text-white px-5 py-3 rounded-2xl shadow-2xl font-bold text-sm border-2 border-white/20 animate-slide-in flex items-center gap-2";
+            toast.innerHTML = `⚠️ <span>${message}</span>`;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 400);
+            }, 4000);
+        }
+
         function renderOrders() {
             const list = document.getElementById('order-list');
             list.innerHTML = "";
-            const tables = Object.keys(activeOrders);
+            const keys = Object.keys(activeOrders);
             
-            if(tables.length === 0) {
+            if(keys.length === 0) {
                 list.innerHTML = `<p class="col-span-full text-center text-red-300 italic">ไม่มีออเดอร์ในขณะนี้</p>`;
                 return;
             }
 
-            tables.forEach(table => {
-                const order = activeOrders[table];
+            keys.forEach(orderKey => {
+                const order = activeOrders[orderKey];
                 let totalAmount = 0;
                 
-                // เพิ่มการแสดงผล note (ระดับความเผ็ด, พิเศษ, ระดับความหวาน)
                 const itemsHtml = Object.values(order.items).map(item => {
                     totalAmount += (item.price * item.qty);
                     return `
@@ -77,20 +116,21 @@
                 const div = document.createElement('div');
                 div.className = "bg-white text-red-900 p-6 rounded-2xl shadow-xl border-l-8 border-red-600";
                 div.innerHTML = `
-                    <h2 class="text-2xl font-bold mb-4">${table}</h2>
+                    <h2 class="text-2xl font-bold mb-4">คุณ: ${order.table}</h2>
                     <ul class="mb-4">${itemsHtml}</ul>
                     <div class="bg-amber-100 p-3 rounded-lg text-center font-bold text-xl mb-4">รวม: ${totalAmount} บาท</div>
-                    <button onclick="finishOrder('${table}', ${totalAmount})" class="w-full bg-red-600 text-white font-bold py-3 rounded-xl hover:bg-red-700 transition">เสิร์ฟแล้ว</button>
+                    <button onclick="finishOrder('${orderKey}', ${totalAmount})" class="w-full bg-red-600 text-white font-bold py-3 rounded-xl hover:bg-red-700 transition">เสิร์ฟแล้ว</button>
                 `;
                 list.appendChild(div);
             });
         }
 
-        function finishOrder(table, total) {
+        function finishOrder(orderKey, total) {
+            const order = activeOrders[orderKey];
             const today = new Date().toLocaleDateString('th-TH');
-            receiptHistory.push({ table, total, date: today, timestamp: Date.now() });
+            receiptHistory.push({ table: order.table, total, date: today, timestamp: Date.now() });
             localStorage.setItem('receiptHistory', JSON.stringify(receiptHistory));
-            delete activeOrders[table];
+            delete activeOrders[orderKey];
             renderOrders();
         }
 
