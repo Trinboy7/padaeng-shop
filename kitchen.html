@@ -18,7 +18,6 @@
 </head>
 <body class="bg-red-950 min-h-screen text-white p-5 relative overflow-x-hidden">
 
-    <!-- กล่องแจ้งเตือนมุมขวาบนเวลาลูกค้ายกเลิกออเดอร์ -->
     <div id="toastContainer" class="fixed top-5 right-5 z-[200] space-y-2"></div>
 
     <div class="flex justify-between items-center mb-6">
@@ -42,7 +41,6 @@
         let receiptHistory = JSON.parse(localStorage.getItem('receiptHistory') || '[]');
         let activeOrders = {}; 
 
-        // รับออเดอร์ใหม่จากลูกค้า
         socket.on('update-kitchen', (newOrder) => {
             const table = newOrder.name || "ไม่ระบุชื่อ"; 
             const orderKeyId = newOrder.id || table; 
@@ -60,13 +58,10 @@
             renderOrders();
         });
 
-        // ดักฟังเหตุการณ์เมื่อลูกค้ายกเลิกออเดอร์
         socket.on('cancel-kitchen', (data) => {
-            let found = false;
             for (let key in activeOrders) {
                 if (activeOrders[key].id === data.orderId || activeOrders[key].table === data.name) {
                     delete activeOrders[key];
-                    found = true;
                 }
             }
             renderOrders();
@@ -128,6 +123,10 @@
         function finishOrder(orderKey, total) {
             const order = activeOrders[orderKey];
             const today = new Date().toLocaleDateString('th-TH');
+            
+            // ส่งข้อมูลชื่อและ ID ไปบอกฝั่งลูกค้าให้เปลี่ยนสถานะ
+            socket.emit('finish-order', { orderId: order.id, name: order.table });
+
             receiptHistory.push({ table: order.table, total, date: today, timestamp: Date.now() });
             localStorage.setItem('receiptHistory', JSON.stringify(receiptHistory));
             delete activeOrders[orderKey];
