@@ -165,17 +165,16 @@
         foods.forEach(f => document.getElementById('contentFood').innerHTML += `<div class="bg-white rounded-2xl shadow-sm border p-2 flex flex-col"><img src="${f.img}" class="menu-img"><h2 class="font-bold text-sm mt-2">${f.name}</h2><p class="text-red-600 font-bold text-sm">${f.price} บาท</p><button onclick="openModal('${f.name}', ${f.price}, 'food')" class="mt-auto bg-red-600 text-white w-full py-2 rounded-xl text-xs font-bold mt-2 hover:bg-red-700 transition">สั่งเลย</button></div>`);
         drinks.forEach(d => document.getElementById('contentDrink').innerHTML += `<div class="bg-white rounded-2xl shadow-sm border p-2 flex flex-col"><img src="${d.img}" class="menu-img"><h2 class="font-bold text-sm mt-2">${d.name}</h2><p class="text-red-600 font-bold text-sm">${d.price} บาท</p><button onclick="openModal('${d.name}', ${d.price}, 'drink')" class="mt-auto bg-red-600 text-white w-full py-2 rounded-xl text-xs font-bold mt-2 hover:bg-red-700 transition">สั่งเลย</button></div>`);
 
-        // ดักฟังเมื่อครัวกดเสิร์ฟอาหารแล้ว (อัปเดตข้อมูลและรีเฟรชหน้าต่างติดตามทันที)
+        // ดักฟังเมื่อครัวกดเสิร์ฟอาหาร (เทียบจากชื่อลูกค้าเพื่อให้สถานะเปลี่ยนชัวร์ๆ)
         socket.on('order-finished', (data) => {
             myOrders = myOrders.map(o => {
-                if (o.id === data.orderId || o.name === data.name) {
+                if (o.id === data.orderId || o.name.trim() === data.name.trim()) {
                     return { ...o, status: 'เสิร์ฟแล้ว' };
                 }
                 return o;
             });
             localStorage.setItem('myOrders', JSON.stringify(myOrders));
             
-            // ถ้าร้านเปิดหน้าต่างติดตามสถานะอยู่ ให้รีเฟรชรายการในจอทันที
             const trackingModal = document.getElementById('trackingModal');
             if (!trackingModal.classList.contains('hidden')) {
                 renderTrackingList();
@@ -185,7 +184,7 @@
         function setName() {
             const name = document.getElementById('customerNameInput').value;
             if (name.trim() === "") { alert("กรุณากรอกชื่อก่อนครับ"); return; }
-            customerName = name;
+            customerName = name.trim();
             document.getElementById('nameModal').classList.add('hidden');
             document.getElementById('orderStatus').innerText = `คุณ: ${customerName}`;
         }
@@ -310,7 +309,7 @@
                     return `
                         <div class="border rounded-2xl p-3 text-sm bg-gray-50 shadow-sm relative mb-2">
                             <div class="flex justify-between font-bold mb-1">
-                                <span>ออเดอร์ #${o.id.slice(-4)}</span>
+                                <span>ออเดอร์ #${o.id.slice(-4)} (${o.name})</span>
                                 <span class="${statusColor}">${o.status}</span>
                             </div>
                             <div class="text-gray-600 mb-2">${itemsStr}</div>
