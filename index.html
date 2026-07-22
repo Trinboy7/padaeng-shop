@@ -38,6 +38,7 @@
 
     <div id="contentFood" class="grid grid-cols-2 gap-4 p-4"></div>
     <div id="contentDrink" class="grid grid-cols-2 gap-4 p-4 hidden"></div>
+    
     <!-- Order Modal (เพิ่ม Option) -->
     <div id="orderModal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-3xl p-6 w-full max-w-sm">
@@ -74,6 +75,7 @@
             </div>
         </div>
     </div>
+
     <div id="cartModal" class="fixed inset-0 bg-black/60 hidden z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-3xl p-6 w-full max-w-sm max-h-[80vh] overflow-y-auto">
             <h2 class="text-xl font-bold mb-4">ตะกร้าของคุณ</h2>
@@ -110,9 +112,53 @@
         function openModal(n, p) { currentMenu = n; currentPrice = p; quantity = 1; document.getElementById('modalTitle').innerText = `${n} (${p} บ.)`; document.getElementById('qty').innerText = quantity; document.getElementById('orderModal').classList.remove('hidden'); }
         function changeQty(v) { quantity = Math.max(1, quantity + v); document.getElementById('qty').innerText = quantity; }
         function closeModal() { document.getElementById('orderModal').classList.add('hidden'); }
-        function addToCart() { cart.push({ name: currentMenu, price: currentPrice, qty: quantity, note: document.getElementById('note').value }); updateUI(); closeModal(); }
+        
+        function addToCart() { 
+            // ดึงค่าระดับความเผ็ดที่เลือก
+            const spicySelected = document.querySelector('input[name="spicy"]:checked');
+            const spicy = spicySelected ? spicySelected.value : "";
+            
+            // ดึงค่าตัวเลือกพิเศษที่ติ๊ก (ถ้ามี)
+            const extraSelected = document.querySelectorAll('input[name="extra"]:checked');
+            let extras = [];
+            let extraPrice = 0;
+            extraSelected.forEach(el => {
+                extras.push(el.value);
+                if (el.value === "ไข่ดาว" || el.value === "ไข่เจียว") {
+                    extraPrice += 10; // เพิ่มราคาตามเงื่อนไขพิเศษ
+                }
+            });
+
+            const finalPrice = currentPrice + extraPrice;
+            
+            // รวมรายละเอียดหมายเหตุหรืออوبชันเสริม
+            let noteText = spicy;
+            if (extras.length > 0) {
+                noteText += (noteText ? ", " : "") + extras.join(", ");
+            }
+
+            cart.push({ 
+                name: currentMenu, 
+                price: finalPrice, 
+                qty: quantity, 
+                note: noteText 
+            }); 
+
+            updateUI(); 
+            closeModal(); 
+        }
+
         function updateUI() { const total = cart.reduce((s, i) => s + i.qty, 0); document.getElementById('btnCheckout').innerText = `ดูตะกร้า (${total} จาน)`; }
-        function toggleCart() { let totalAll = 0; document.getElementById('cartList').innerHTML = cart.map(i => { totalAll += (i.price * i.qty); return `<div class="text-sm border-b pb-2 flex justify-between"><b>${i.name} x${i.qty}</b> <span>${i.price * i.qty} บ.</span></div>`; }).join('') + `<div class="text-right font-bold text-lg mt-2">รวม: ${totalAll} บาท</div>`; document.getElementById('cartModal').classList.toggle('hidden'); }
+        
+        function toggleCart() { 
+            let totalAll = 0; 
+            document.getElementById('cartList').innerHTML = cart.map(i => { 
+                totalAll += (i.price * i.qty); 
+                return `<div class="text-sm border-b pb-2 flex justify-between"><div><b>${i.name} x${i.qty}</b><br><span class="text-xs text-gray-500">${i.note}</span></div> <span>${i.price * i.qty} บ.</span></div>`; 
+            }).join('') + `<div class="text-right font-bold text-lg mt-2">รวม: ${totalAll} บาท</div>`; 
+            document.getElementById('cartModal').classList.toggle('hidden'); 
+        }
+
         function sendOrder() { if(customerName === "") { alert("กรุณาระบุชื่อก่อนครับ"); return; } socket.emit('new-order', { name: customerName, items: cart }); alert("ส่งออเดอร์แล้ว!"); cart = []; updateUI(); toggleCart(); }
         function switchTab(t) { document.getElementById('contentFood').classList.toggle('hidden', t !== 'food'); document.getElementById('contentDrink').classList.toggle('hidden', t !== 'drink'); document.getElementById('tabFood').className = t === 'food' ? "flex-1 bg-red-600 text-white py-2 rounded-lg font-bold" : "flex-1 text-gray-600 py-2 rounded-lg"; document.getElementById('tabDrink').className = t === 'drink' ? "flex-1 bg-red-600 text-white py-2 rounded-lg font-bold" : "flex-1 text-gray-600 py-2 rounded-lg"; }
     </script>
