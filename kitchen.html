@@ -42,10 +42,10 @@
         let receiptHistory = JSON.parse(localStorage.getItem('receiptHistory') || '[]');
         let activeOrders = {}; 
 
-        // รับออเดอร์ใหม่
+        // รับออเดอร์ใหม่จากลูกค้า
         socket.on('update-kitchen', (newOrder) => {
             const table = newOrder.name || "ไม่ระบุชื่อ"; 
-            const orderKeyId = newOrder.id || table; // ใช้ id ออเดอร์เป็นหลัก
+            const orderKeyId = newOrder.id || table; 
             
             if (!activeOrders[orderKeyId]) activeOrders[orderKeyId] = { items: {}, table: table, id: newOrder.id };
             
@@ -60,24 +60,24 @@
             renderOrders();
         });
 
-        // จำลองฟังชันก์รับอีเวนต์ยกเลิกออเดอร์จากลูกค้า (ถ้าต่อ Server Socket จริง สามารถส่ง event มาได้เลย)
-        // ในที่นี้เราดึงข้อมูลผ่านการซิงค์ หรือถ้าใช้หน้าเว็บเดียวกันจำลอง ให้ใช้ socket ฟัง event 'cancel-order'
+        // ดักฟังเหตุการณ์เมื่อลูกค้ายกเลิกออเดอร์
         socket.on('cancel-kitchen', (data) => {
-            // ลบออเดอร์ออกจากหน้าจอครัวทันที
+            let found = false;
             for (let key in activeOrders) {
                 if (activeOrders[key].id === data.orderId || activeOrders[key].table === data.name) {
                     delete activeOrders[key];
+                    found = true;
                 }
             }
             renderOrders();
-            showToast(`ลูกค้า "${data.name}" ได้ยกเลิกออเดอร์แล้ว!`);
+            showToast(`⚠️ คุณ "${data.name}" ได้กดยกเลิกออเดอร์แล้ว!`);
         });
 
         function showToast(message) {
             const container = document.getElementById('toastContainer');
             const toast = document.createElement('div');
             toast.className = "bg-red-600 text-white px-5 py-3 rounded-2xl shadow-2xl font-bold text-sm border-2 border-white/20 animate-slide-in flex items-center gap-2";
-            toast.innerHTML = `⚠️ <span>${message}</span>`;
+            toast.innerHTML = `<span>${message}</span>`;
             container.appendChild(toast);
 
             setTimeout(() => {
