@@ -20,7 +20,7 @@
 </head>
 <body class="bg-gray-50 min-h-screen pb-24">
 
-    <!-- Modal เลือกชื่อและโต๊ะ (ใส่โลโก้เดิมของคุณแล้ว) -->
+    <!-- Modal เลือกชื่อและโต๊ะ -->
     <div id="nameModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
         <div class="bg-white w-full max-w-sm rounded-[35px] p-8 text-center shadow-2xl border-4 border-red-100 animate-bounce-in relative overflow-hidden">
             <img src="https://i.pinimg.com/736x/66/ec/2f/66ec2fe662776b01e761681253bc8839.jpg" class="w-24 h-24 rounded-full mx-auto mb-4 object-cover border-4 border-red-600 shadow-md">
@@ -42,7 +42,7 @@
         </div>
     </div>
 
-    <!-- Header (มีโลโก้เดิมของคุณ) -->
+    <!-- Header -->
     <div class="bg-white p-3 shadow-sm flex items-center justify-between sticky top-0 z-50">
         <div class="flex items-center gap-3">
             <img src="https://i.pinimg.com/736x/66/ec/2f/66ec2fe662776b01e761681253bc8839.jpg" class="w-10 h-10 rounded-full object-cover border-2 border-red-600">
@@ -281,10 +281,17 @@
             list.innerHTML = myOrders.map(o => {
                 let itemsStr = o.items.map(i => `${i.name} x${i.qty} (${i.note || '-'})`).join('<br>');
                 let canCancel = o.status === 'รอดำเนินการ';
+                
+                // ตรวจสอบสถานะเพื่อแสดงผลข้อความพิเศษตอนอาหารเสิร์ฟแล้ว
+                let statusBadge = `<span class="text-amber-600">${o.status}</span>`;
+                if(o.status === 'เสิร์ฟแล้ว') {
+                    statusBadge = `<span class="text-green-600 font-bold bg-green-50 px-2 py-1 rounded-lg">อาหารมาเสิร์ฟที่โต๊ะแล้ว ทานให้อร่อยนะครับ 😋</span>`;
+                }
+
                 return `<div class="border rounded-2xl p-3 text-sm bg-gray-50 shadow-sm mb-2">
-                    <div class="flex justify-between font-bold mb-1">
+                    <div class="flex justify-between font-bold mb-1 items-center">
                         <span>${o.table} (${o.name})</span>
-                        <span class="text-amber-600">${o.status}</span>
+                        ${statusBadge}
                     </div>
                     <div class="text-gray-600 mb-2">${itemsStr}</div>
                     ${canCancel ? `<button onclick="cancelOrder('${o.id}')" class="w-full bg-red-100 text-red-600 py-1 rounded-xl font-bold text-xs">ยกเลิก</button>` : ''}
