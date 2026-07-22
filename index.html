@@ -54,13 +54,13 @@
         </div>
     </div>
 
-    <!-- Header -->
+    <!-- Header (ปรับขนาดฟอนต์ชื่อร้านและชื่อลูกค้าให้ใหญ่ขึ้นตรงนี้) -->
     <div class="bg-white p-4 shadow-sm flex items-center justify-between sticky top-0 z-50">
         <div class="flex items-center gap-4">
-            <img src="https://i.pinimg.com/736x/66/ec/2f/66ec2fe662776b01e761681253bc8839.jpg" class="w-12 h-12 rounded-full object-cover border-2 border-red-600">
+            <img src="https://i.pinimg.com/736x/66/ec/2f/66ec2fe662776b01e761681253bc8839.jpg" class="w-14 h-14 rounded-full object-cover border-2 border-red-600">
             <div>
-                <h1 class="text-lg font-bold text-gray-800">ร้านป้าแดงตามสั่ง</h1>
-                <p id="orderStatus" class="text-xs text-red-600 font-bold">ยังไม่ได้ระบุชื่อ</p>
+                <h1 class="text-xl font-bold text-gray-800">ร้านป้าแดงตามสั่ง</h1>
+                <p id="orderStatus" class="text-sm text-red-600 font-bold">ยังไม่ได้ระบุชื่อ</p>
             </div>
         </div>
         <div class="flex gap-2">
@@ -165,7 +165,6 @@
         foods.forEach(f => document.getElementById('contentFood').innerHTML += `<div class="bg-white rounded-2xl shadow-sm border p-2 flex flex-col"><img src="${f.img}" class="menu-img"><h2 class="font-bold text-sm mt-2">${f.name}</h2><p class="text-red-600 font-bold text-sm">${f.price} บาท</p><button onclick="openModal('${f.name}', ${f.price}, 'food')" class="mt-auto bg-red-600 text-white w-full py-2 rounded-xl text-xs font-bold mt-2 hover:bg-red-700 transition">สั่งเลย</button></div>`);
         drinks.forEach(d => document.getElementById('contentDrink').innerHTML += `<div class="bg-white rounded-2xl shadow-sm border p-2 flex flex-col"><img src="${d.img}" class="menu-img"><h2 class="font-bold text-sm mt-2">${d.name}</h2><p class="text-red-600 font-bold text-sm">${d.price} บาท</p><button onclick="openModal('${d.name}', ${d.price}, 'drink')" class="mt-auto bg-red-600 text-white w-full py-2 rounded-xl text-xs font-bold mt-2 hover:bg-red-700 transition">สั่งเลย</button></div>`);
 
-        // ดักฟังเมื่อครัวกดเสิร์ฟอาหาร (เทียบจากชื่อลูกค้าเพื่อให้สถานะเปลี่ยนชัวร์ๆ)
         socket.on('order-finished', (data) => {
             myOrders = myOrders.map(o => {
                 if (o.id === data.orderId || o.name.trim() === data.name.trim()) {
