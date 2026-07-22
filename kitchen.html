@@ -11,18 +11,19 @@
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-3xl font-bold">หน้าจอห้องครัว</h1>
         <div class="flex gap-2">
-            <a href="admin.html" class="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-full font-bold shadow-lg">จัดการเมนู/สต็อก</a>
-            <button onclick="toggleReceiptModal()" class="bg-amber-500 hover:bg-amber-600 px-6 py-2 rounded-full font-bold shadow-lg">สรุปยอดขาย</button>
+            <a href="admin.html" class="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-full font-bold shadow-lg transition">จัดการเมนู/สต็อก</a>
+            <button onclick="toggleReceiptModal()" class="bg-amber-500 hover:bg-amber-600 px-6 py-2 rounded-full font-bold shadow-lg transition">สรุปยอดขาย (รายวัน)</button>
         </div>
     </div>
 
     <div id="order-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
 
+    <!-- Modal สรุปยอดขายรายวัน -->
     <div id="receiptModal" class="hidden fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4">
-        <div class="bg-white text-red-900 rounded-3xl p-6 w-full max-w-sm max-h-[80vh] overflow-y-auto">
-            <h2 class="text-2xl font-bold mb-4 text-center">สรุปยอดขาย</h2>
+        <div class="bg-white text-red-900 rounded-3xl p-6 w-full max-w-md max-h-[85vh] overflow-y-auto shadow-2xl">
+            <h2 class="text-2xl font-bold mb-4 text-center">📈 สรุปยอดขายย้อนหลัง</h2>
             <div id="receiptList" class="space-y-4"></div>
-            <button onclick="toggleReceiptModal()" class="mt-6 w-full py-3 bg-red-600 text-white rounded-xl font-bold">ปิด</button>
+            <button onclick="toggleReceiptModal()" class="mt-6 w-full py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition">ปิด</button>
         </div>
     </div>
 
@@ -54,7 +55,7 @@
             const list = document.getElementById('order-list');
             list.innerHTML = "";
             const keys = Object.keys(activeOrders);
-            if(keys.length === 0) { list.innerHTML = `<p class="col-span-full text-center text-red-300 italic">ไม่มีออเดอร์</p>`; return; }
+            if(keys.length === 0) { list.innerHTML = `<p class="col-span-full text-center text-red-300 italic">ไม่มีออเดอร์ในขณะนี้</p>`; return; }
 
             keys.forEach(id => {
                 const order = activeOrders[id];
@@ -66,12 +67,12 @@
 
                 let nextBtn = '';
                 if(order.status === 'รอดำเนินการ') {
-                    nextBtn = `<button onclick="updateStatus('${id}', 'กำลังทำอาหาร')" class="w-full bg-amber-500 text-white font-bold py-2 rounded-xl mb-2">รับออเดอร์ / กำลังทำ</button>`;
+                    nextBtn = `<button onclick="updateStatus('${id}', 'กำลังทำอาหาร')" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 rounded-xl mb-2 transition">รับออเดอร์ / กำลังทำ</button>`;
                 } else if(order.status === 'กำลังทำอาหาร') {
-                    nextBtn = `<button onclick="finishOrder('${id}', ${total})" class="w-full bg-green-600 text-white font-bold py-2 rounded-xl mb-2">เสิร์ฟแล้ว</button>`;
+                    nextBtn = `<button onclick="finishOrder('${id}', ${total})" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded-xl mb-2 transition">เสิร์ฟแล้ว (บันทึกยอดขาย)</button>`;
                 }
 
-                div = document.createElement('div');
+                let div = document.createElement('div');
                 div.className = "bg-white text-red-900 p-6 rounded-2xl shadow-xl border-l-8 border-red-600";
                 div.innerHTML = `<h2 class="text-xl font-bold mb-2">${order.table} (${order.name})</h2>
                     <p class="text-xs text-gray-500 mb-2">สถานะ: <b class="text-red-600">${order.status}</b></p>
@@ -85,21 +86,80 @@
         function finishOrder(id, total) {
             const order = activeOrders[id];
             socket.emit('update-status', { orderId: id, status: 'เสิร์ฟแล้ว' });
-            receiptHistory.push({ table: order.table, name: order.name, items: order.items, total, date: new Date().toLocaleDateString('th-TH'), timestamp: Date.now() });
+            
+            // บันทึกวันที่ปัจจุบันในรูปแบบ วัน/เดือน/ปี (เช่น 22/7/2026) อัตโนมัติ
+            const today = new Date().toLocaleDateString('th-TH');
+            
+            receiptHistory.push({ 
+                table: order.table, 
+                name: order.name, 
+                items: order.items, 
+                total, 
+                date: today, 
+                timestamp: Date.now() 
+            });
+            
             localStorage.setItem('receiptHistory', JSON.stringify(receiptHistory));
             delete activeOrders[id];
             renderOrders();
         }
 
+        function deleteRecord(timestamp) {
+            if(confirm('คุณต้องการลบประวัติรายการนี้ใช่หรือไม่?')) {
+                receiptHistory = receiptHistory.filter(item => item.timestamp !== timestamp);
+                localStorage.setItem('receiptHistory', JSON.stringify(receiptHistory));
+                toggleReceiptModal();
+                toggleReceiptModal(); // เปิด Modal รีเฟรชข้อมูลใหม่
+            }
+        }
+
         function toggleReceiptModal() {
             const modal = document.getElementById('receiptModal');
             const list = document.getElementById('receiptList');
-            let totalAll = 0;
-            let html = receiptHistory.map(h => {
-                totalAll += h.total;
-                return `<div class="border-b pb-2 text-sm"><b class="text-red-600">${h.table} (${h.name})</b> - ${h.total} บาท <br><span class="text-xs text-gray-500">${h.date}</span></div>`;
-            }).join('');
-            list.innerHTML = html ? `<div class="font-bold text-lg mb-2 text-red-700">ยอดขายรวมทั้งหมด: ${totalAll} บาท</div>` + html : '<p class="text-center text-gray-400">ยังไม่มีประวัติ</p>';
+            
+            if (receiptHistory.length === 0) {
+                list.innerHTML = '<p class="text-center text-gray-400 py-4">ยังไม่มีประวัติการขาย</p>';
+                modal.classList.toggle('hidden');
+                return;
+            }
+
+            // จัดกลุ่มยอดขายตามวันที่ (Group by Date)
+            const grouped = receiptHistory.reduce((acc, curr) => {
+                if (!acc[curr.date]) acc[curr.date] = [];
+                acc[curr.date].push(curr);
+                return acc;
+            }, {});
+
+            let html = '';
+            let grandTotalAll = 0;
+
+            for (const date in grouped) {
+                let dailyTotal = 0;
+                html += `<div class="mb-4 border-2 border-red-100 rounded-2xl p-3 bg-red-50/30">`;
+                html += `<h3 class="font-bold text-base text-red-700 bg-red-100 px-3 py-1 rounded-xl mb-2 flex justify-between"><span>📅 วันที่: ${date}</span></h3>`;
+                
+                grouped[date].forEach(item => {
+                    dailyTotal += item.total;
+                    let itemsSummary = item.items.map(i => `${i.name} x${i.qty}`).join(', ');
+                    html += `
+                        <div class="flex justify-between items-center py-2 border-b border-gray-200 text-sm">
+                            <div>
+                                <span class="font-bold text-gray-800">${item.table} (${item.name})</span><br>
+                                <span class="text-xs text-gray-500">${itemsSummary}</span>
+                            </div>
+                            <div class="text-right">
+                                <span class="font-bold text-red-600">${item.total} บ.</span><br>
+                                <button onclick="deleteRecord(${item.timestamp})" class="text-xs text-red-400 hover:text-red-600 underline">ลบ</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                grandTotalAll += dailyTotal;
+                html += `<div class="text-right font-bold text-red-800 mt-2 text-sm">รวมยอดขายวันที่ ${date}: ${dailyTotal} บาท</div>`;
+                html += `</div>`;
+            }
+
+            list.innerHTML = `<div class="bg-amber-100 p-3 rounded-2xl text-center font-bold text-lg text-amber-900 mb-4">💰 ยอดขายสะสมทั้งหมด: ${grandTotalAll} บาท</div>` + html;
             modal.classList.toggle('hidden');
         }
     </script>
