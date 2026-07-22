@@ -9,8 +9,11 @@ io.on('connection', (socket) => {
     // รับออเดอร์ใหม่จากลูกค้า
     socket.on('new-order', (data) => io.emit('update-kitchen', data));
 
-    // รับคำสั่งยกเลิกออเดอร์จากลูกค้า และส่งบอกหน้าจอครัวทันที
+    // รับคำสั่งยกเลิกออเดอร์จากลูกค้า
     socket.on('cancel-order', (data) => io.emit('cancel-kitchen', data));
+
+    // รับคำสั่งเมื่อครัวกดเสิร์ฟอาหารแล้ว
+    socket.on('finish-order', (data) => io.emit('order-finished', data));
 });
 
 http.listen(3000, () => console.log('ร้านป้าแดงเปิดแล้วที่ http://localhost:3000'));
