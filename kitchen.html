@@ -15,18 +15,21 @@
         </div>
         <div class="flex gap-2">
             <a href="admin.html" class="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-full font-bold shadow-lg transition">จัดการเมนู/สต็อก</a>
-            <button onclick="toggleReceiptModal()" class="bg-amber-500 hover:bg-amber-600 px-6 py-2 rounded-full font-bold shadow-lg transition">สรุปยอดขายย้อนหลัง</button>
+            <button onclick="toggleReceiptModal()" class="bg-amber-500 hover:bg-amber-600 px-6 py-2 rounded-full font-bold shadow-lg transition">สรุปยอดขาย</button>
         </div>
     </div>
 
     <div id="order-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
 
-    <!-- Modal สรุปยอดขายรายวันตามปฏิทิน -->
+    <!-- Modal สรุปยอดขาย (แบบกดเลือกปุ่มรายวัน) -->
     <div id="receiptModal" class="hidden fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4">
         <div class="bg-white text-red-900 rounded-3xl p-6 w-full max-w-md max-h-[85vh] overflow-y-auto shadow-2xl">
-            <h2 class="text-2xl font-bold mb-4 text-center">📅 ประวัติยอดขายแยกตามวัน</h2>
-            <div id="receiptList" class="space-y-4"></div>
-            <button onclick="toggleReceiptModal()" class="mt-6 w-full py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition">ปิด</button>
+            <h2 id="modalHeaderTitle" class="text-2xl font-bold mb-4 text-center">📅 เลือกวันที่ต้องการดูยอดขาย</h2>
+            
+            <!-- ส่วนสำหรับแสดงปุ่มเลือกวัน หรือ รายละเอียดของวันนั้นๆ -->
+            <div id="receiptContent" class="space-y-3"></div>
+
+            <button onclick="closeReceiptModal()" class="mt-6 w-full py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition">ปิด</button>
         </div>
     </div>
 
@@ -36,7 +39,6 @@
         let receiptHistory = JSON.parse(localStorage.getItem('receiptHistory') || '[]');
         let activeOrders = {}; 
 
-        // แสดงวันที่ปัจจุบันตามปฏิทินจริงในประเทศไทย (รูปแบบ พ.ศ.)
         const todayDateStr = new Date().toLocaleDateString('th-TH', {
             year: 'numeric',
             month: 'numeric',
@@ -98,7 +100,6 @@
             const order = activeOrders[id];
             socket.emit('update-status', { orderId: id, status: 'เสิร์ฟแล้ว' });
             
-            // บันทึกวันที่ตามปฏิทินจริงของออเดอร์นี้โดยอัตโนมัติ
             const orderDateStr = new Date().toLocaleDateString('th-TH', {
                 year: 'numeric',
                 month: 'numeric',
@@ -119,26 +120,33 @@
             renderOrders();
         }
 
-        function deleteRecord(timestamp) {
+        function deleteRecord(timestamp, targetDate) {
             if(confirm('คุณต้องการลบประวัติรายการนี้ใช่หรือไม่?')) {
                 receiptHistory = receiptHistory.filter(item => item.timestamp !== timestamp);
                 localStorage.setItem('receiptHistory', JSON.stringify(receiptHistory));
-                toggleReceiptModal();
-                toggleReceiptModal(); 
+                showDayDetail(targetDate); // เปิดดูหน้ารายละเอียดของวันนั้นต่อ
             }
         }
 
         function toggleReceiptModal() {
-            const modal = document.getElementById('receiptModal');
-            const list = document.getElementById('receiptList');
-            
+            showDateList();
+            document.getElementById('receiptModal').classList.remove('hidden');
+        }
+
+        function closeReceiptModal() {
+            document.getElementById('receiptModal').classList.add('hidden');
+        }
+
+        // แสดงหน้าปุ่มเลือกวันที่ทั้งหมดที่มีประวัติ
+        function showDateList() {
+            document.getElementById('modalHeaderTitle').innerText = "📅 เลือกวันที่ต้องการดูยอดขาย";
+            const content = document.getElementById('receiptContent');
+
             if (receiptHistory.length === 0) {
-                list.innerHTML = '<p class="text-center text-gray-400 py-4">ยังไม่มีประวัติการขาย</p>';
-                modal.classList.toggle('hidden');
+                content.innerHTML = '<p class="text-center text-gray-400 py-4">ยังไม่มีประวัติการขาย</p>';
                 return;
             }
 
-            // จัดกลุ่มและเรียงลำดับยอดขายตามวันที่ปฏิทินย้อนหลัง
             const grouped = receiptHistory.reduce((acc, curr) => {
                 if (!acc[curr.date]) acc[curr.date] = [];
                 acc[curr.date].push(curr);
@@ -146,41 +154,50 @@
             }, {});
 
             let html = '';
-            let grandTotalAll = 0;
-
-            // วนลูปสร้างรายการแยกตามแต่ละวัน
             for (const date in grouped) {
-                let dailyTotal = 0;
+                let dailyTotal = grouped[date].reduce((sum, item) => sum + item.total, 0);
                 let isToday = (date === todayDateStr);
-                
-                html += `<div class="mb-4 border-2 ${isToday ? 'border-red-500 bg-red-50/20' : 'border-gray-200 bg-gray-50'} rounded-2xl p-3">`;
-                html += `<h3 class="font-bold text-base text-red-700 bg-red-100 px-3 py-1 rounded-xl mb-2 flex justify-between items-center">
-                    <span>📅 วันที่: ${date} ${isToday ? '(วันนี้)' : ''}</span>
-                </h3>`;
-                
-                grouped[date].forEach(item => {
-                    dailyTotal += item.total;
-                    let itemsSummary = item.items.map(i => `${i.name} x${i.qty}`).join(', ');
-                    html += `
-                        <div class="flex justify-between items-center py-2 border-b border-gray-200 text-sm">
-                            <div>
-                                <span class="font-bold text-gray-800">${item.table} (${item.name})</span><br>
-                                <span class="text-xs text-gray-500">${itemsSummary}</span>
-                            </div>
-                            <div class="text-right">
-                                <span class="font-bold text-red-600">${item.total} บ.</span><br>
-                                <button onclick="deleteRecord(${item.timestamp})" class="text-xs text-red-400 hover:text-red-600 underline">ลบ</button>
-                            </div>
-                        </div>
-                    `;
-                });
-                grandTotalAll += dailyTotal;
-                html += `<div class="text-right font-bold text-red-800 mt-2 text-sm">รวมยอดขายวันที่ ${date}: ${dailyTotal} บาท</div>`;
-                html += `</div>`;
-            }
 
-            list.innerHTML = `<div class="bg-amber-100 p-3 rounded-2xl text-center font-bold text-lg text-amber-900 mb-4">💰 ยอดขายสะสมทุกวันรวมทั้งหมด: ${grandTotalAll} บาท</div>` + html;
-            modal.classList.toggle('hidden');
+                html += `
+                    <button onclick="showDayDetail('${date}')" class="w-full flex justify-between items-center p-4 rounded-2xl border-2 ${isToday ? 'border-red-500 bg-red-50 text-red-900' : 'border-gray-200 bg-gray-50 text-gray-800'} hover:shadow-md transition font-bold">
+                        <span>📅 วันที่ ${date} ${isToday ? '(วันนี้)' : ''}</span>
+                        <span class="text-red-600">${dailyTotal} บาท ➔</span>
+                    </button>
+                `;
+            }
+            content.innerHTML = html;
+        }
+
+        // แสดงรายละเอียดออเดอร์ของวันที่เลือก
+        function showDayDetail(date) {
+            document.getElementById('modalHeaderTitle').innerText = `📊 ยอดขายวันที่ ${date}`;
+            const content = document.getElementById('receiptContent');
+
+            const dayItems = receiptHistory.filter(item => item.date === date);
+            let dailyTotal = dayItems.reduce((sum, item) => sum + item.total, 0);
+
+            let html = `<button onclick="showDateList()" class="text-sm font-bold text-blue-600 hover:underline mb-3">⬅️ กลับไปเลือกวัน</button>`;
+            html += `<div class="bg-amber-100 p-3 rounded-2xl text-center font-bold text-lg text-amber-900 mb-3">💰 ยอดขายรวม: ${dailyTotal} บาท</div>`;
+            
+            html += `<div class="space-y-2 max-h-[50vh] overflow-y-auto pr-1">`;
+            dayItems.forEach(item => {
+                let itemsSummary = item.items.map(i => `${i.name} x${i.qty}`).join(', ');
+                html += `
+                    <div class="flex justify-between items-center p-3 border border-gray-200 rounded-xl bg-gray-50 text-sm">
+                        <div>
+                            <span class="font-bold text-gray-800">${item.table} (${item.name})</span><br>
+                            <span class="text-xs text-gray-500">${itemsSummary}</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="font-bold text-red-600">${item.total} บ.</span><br>
+                            <button onclick="deleteRecord(${item.timestamp}, '${date}')" class="text-xs text-red-400 hover:text-red-600 underline">ลบ</button>
+                        </div>
+                    </div>
+                `;
+            });
+            html += `</div>`;
+
+            content.innerHTML = html;
         }
     </script>
 </body>
