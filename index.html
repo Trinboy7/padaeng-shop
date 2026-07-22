@@ -27,10 +27,9 @@
             animation: floatEffect 3s ease-in-out infinite;
         }
 
-        /* ล็อกขนาดความสูงและบังคับให้รูปภาพเต็มกรอบสวยงามเท่ากันทุกรูป */
         .menu-img {
             width: 100%;
-            height: 140px; /* ปรับความสูงตามต้องการได้ที่นี่ */
+            height: 140px;
             object-fit: cover;
             border-radius: 1rem;
         }
@@ -55,6 +54,7 @@
         </div>
     </div>
 
+    <!-- Header -->
     <div class="bg-white p-4 shadow-sm flex items-center justify-between sticky top-0 z-50">
         <div class="flex items-center gap-4">
             <img src="https://i.pinimg.com/736x/66/ec/2f/66ec2fe662776b01e761681253bc8839.jpg" class="w-12 h-12 rounded-full object-cover border-2 border-red-600">
@@ -63,7 +63,10 @@
                 <p id="orderStatus" class="text-xs text-red-600 font-bold">ยังไม่ได้ระบุชื่อ</p>
             </div>
         </div>
-        <button onclick="changeName()" class="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg text-xs font-bold border hover:bg-gray-200 transition">แก้ไขชื่อ</button>
+        <div class="flex gap-2">
+            <button onclick="toggleTrackingModal()" class="bg-amber-500 text-white px-3 py-1 rounded-lg text-xs font-bold shadow hover:bg-amber-600 transition">ติดตามสถานะ</button>
+            <button onclick="changeName()" class="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg text-xs font-bold border hover:bg-gray-200 transition">แก้ไขชื่อ</button>
+        </div>
     </div>
 
     <div class="flex bg-white mx-4 mt-4 rounded-xl p-1 shadow-sm border border-gray-100">
@@ -74,12 +77,12 @@
     <div id="contentFood" class="grid grid-cols-2 gap-4 p-4"></div>
     <div id="contentDrink" class="grid grid-cols-2 gap-4 p-4 hidden"></div>
     
-    <!-- Order Modal -->
+    <!-- Order Modal (เพิ่มช่องพิมพ์หมายเหตุพิเศษ) -->
     <div id="orderModal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl p-6 w-full max-w-sm animate-bounce-in">
+        <div class="bg-white rounded-3xl p-6 w-full max-w-sm animate-bounce-in max-h-[90vh] overflow-y-auto">
             <h2 id="modalTitle" class="text-xl font-bold mb-4"></h2>
             
-            <div id="foodOptions" class="space-y-4 mb-6">
+            <div id="foodOptions" class="space-y-4 mb-4">
                 <div>
                     <p class="font-bold text-sm mb-2">ระดับความเผ็ด</p>
                     <div class="flex gap-4 text-sm">
@@ -98,7 +101,7 @@
                 </div>
             </div>
 
-            <div id="drinkOptions" class="space-y-4 mb-6 hidden">
+            <div id="drinkOptions" class="space-y-4 mb-4 hidden">
                 <div>
                     <p class="font-bold text-sm mb-2">ระดับความหวาน</p>
                     <div class="grid grid-cols-2 gap-2 text-sm">
@@ -108,6 +111,12 @@
                         <label><input type="radio" name="sweet" value="ไม่หวาน (0%)" class="mr-1">ไม่หวาน (0%)</label>
                     </div>
                 </div>
+            </div>
+
+            <!-- ช่องพิมพ์หมายเหตุเพิ่มเติมเอง -->
+            <div class="mb-4">
+                <label class="font-bold text-sm block mb-1">หมายเหตุเพิ่มเติมถึงแม่ค้า</label>
+                <input type="text" id="customNote" placeholder="เช่น ขอเผ็ดน้อยมากๆ, ข้าวน้อย..." class="w-full p-2 border rounded-xl text-sm outline-none focus:border-red-500">
             </div>
 
             <div class="flex items-center gap-4 mb-6">
@@ -123,11 +132,21 @@
         </div>
     </div>
 
+    <!-- Cart Modal -->
     <div id="cartModal" class="fixed inset-0 bg-black/60 hidden z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-3xl p-6 w-full max-w-sm max-h-[80vh] overflow-y-auto animate-bounce-in">
             <h2 class="text-xl font-bold mb-4">ตะกร้าของคุณ</h2>
             <div id="cartList" class="space-y-3 mb-4"></div>
             <button onclick="sendOrder()" class="w-full bg-orange-500 text-white py-3 rounded-xl font-bold hover:bg-orange-600">ยืนยันสั่งอาหาร</button>
+        </div>
+    </div>
+
+    <!-- Tracking Modal (หน้าจอติดตามสถานะและยกเลิกออเดอร์) -->
+    <div id="trackingModal" class="fixed inset-0 bg-black/60 hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-6 w-full max-w-sm max-h-[80vh] overflow-y-auto animate-bounce-in">
+            <h2 class="text-xl font-bold mb-4 text-center">สถานะออเดอร์ของคุณ</h2>
+            <div id="trackingList" class="space-y-3 mb-4"></div>
+            <button onclick="toggleTrackingModal()" class="w-full bg-gray-300 text-gray-700 py-3 rounded-xl font-bold">ปิด</button>
         </div>
     </div>
 
@@ -139,11 +158,11 @@
     <script>
         const socket = io();
         let cart = [], currentMenu = "", currentPrice = 0, currentType = "", quantity = 1, customerName = "";
+        let myOrders = JSON.parse(localStorage.getItem('myOrders') || '[]');
         
         const foods = [{ name: "กะเพราหมู", price: 50, img: "https://i.pinimg.com/736x/6b/ae/0d/6bae0d7f752ae472f967e6053aea8fe2.jpg" }, { name: "ข้าวผัดหมู", price: 50, img: "https://i.pinimg.com/736x/f4/19/de/f419de37a2237f3b72a02ac08b147d9e.jpg" }, { name: "ข้าวผัดกุ้ง", price: 60, img: "https://i.pinimg.com/736x/68/d0/88/68d08817aa8f47b1520b8abf7cb458fd.jpg" }, { name: "หมูกระเทียม", price: 50, img: "https://i.pinimg.com/736x/0a/f6/4f/0af64f8926e0fdfcb80bfd8c347b3068.jpg" }, { name: "ต้มยำกุ้ง", price: 80, img: "https://i.pinimg.com/736x/88/dc/57/88dc57a2d53e6d2fa10380cfbebd5c57.jpg" }, { name: "ไข่เจียวหมูสับ", price: 40, img: "https://i.pinimg.com/736x/af/27/e6/af27e6a4929d7edd58a1e31c34570592.jpg" }, { name: "ผัดผักบุ้ง", price: 40, img: "https://i.pinimg.com/736x/22/46/fd/2246fdaac023eb3d32df0726b1e9f1da.jpg" }, { name: "ลาบหมู", price: 60, img: "https://i.pinimg.com/736x/25/df/57/25df57d5126dc44b31906b1647e9e678.jpg" }, { name: "ผัดพริกแกง", price: 50, img: "https://i.pinimg.com/736x/f3/f4/26/f3f426fab2d3cc6c46b2368106462aba.jpg" }, { name: "คะน้าหมูกรอบ", price: 60, img: "https://i.pinimg.com/736x/b8/31/bc/b831bc54de20ea048ec5fb88172fd50b.jpg" }, { name: "แกงเขียวหวาน", price: 60, img: "https://i.pinimg.com/736x/a6/c6/84/a6c684eaed17152e3dbdac77e420c55f.jpg" }, { name: "ต้มจืดเต้าหู้", price: 50, img: "https://i.pinimg.com/736x/94/9d/b1/949db11fe9976f74d1031f00c7604b61.jpg" }];
         const drinks = [{ name: "ชาเย็น", price: 25, img: "https://i.pinimg.com/736x/0b/e7/b8/0be7b87d66b4d16ec60455d1d81abbe8.jpg" }, { name: "กาแฟเย็น", price: 30, img: "https://i.pinimg.com/736x/84/b7/35/84b7355734e0e662d3a9fa7ee641ceb5.jpg" }, { name: "น้ำส้ม", price: 25, img: "https://i.pinimg.com/736x/f8/56/5b/f8565b7442a9df396adc387c8555d8b4.jpg" }, { name: "น้ำแตงโมปั่น", price: 35, img: "https://i.pinimg.com/736x/fc/f9/75/fcf9755f4ac42ca6394adb0964d72d8e.jpg" }, { name: "ชามะนาว", price: 25, img: "https://i.pinimg.com/736x/e1/2a/be/e12abe1a7b170214203412397571c289.jpg" }, { name: "น้ำแดงโซดา", price: 25, img: "https://i.pinimg.com/736x/4f/7a/60/4f7a608bd5384c201a6d707b16263616.jpg" }, { name: "นมชมพู", price: 25, img: "https://i.pinimg.com/736x/49/e9/0c/49e90c3e7a08474e057912b5e5a6ce3e.jpg" }, { name: "โกโก้เย็น", price: 30, img: "https://i.pinimg.com/736x/2e/16/1d/2e161df2587bbcf1894ec24e579b8385.jpg" }, { name: "อัญชันมะนาว", price: 30, img: "https://i.pinimg.com/736x/85/ad/2e/85ad2ef9c98aaf765263fb3f0e74de61.jpg" }, { name: "น้ำเปล่า", price: 10, img: "https://i.pinimg.com/736x/81/68/b6/8168b6f71a64c4bd2dba556df2c053f0.jpg" }, { name: "ชาเขียวมัทฉะ", price: 35, img: "https://i.pinimg.com/736x/b2/8b/37/b28b37e9df9dba7a26cdedf4aa8ef781.jpg" }, { name: "น้ำลำไย", price: 30, img: "https://i.pinimg.com/736x/4c/91/19/4c9119ad1690c68057b538be0184ab5d.jpg" }];
 
-        // ใช้ class .menu-img เพื่อให้รูปทุกรูปขนาดเท่ากันเป๊ะ
         foods.forEach(f => document.getElementById('contentFood').innerHTML += `<div class="bg-white rounded-2xl shadow-sm border p-2 flex flex-col"><img src="${f.img}" class="menu-img"><h2 class="font-bold text-sm mt-2">${f.name}</h2><p class="text-red-600 font-bold text-sm">${f.price} บาท</p><button onclick="openModal('${f.name}', ${f.price}, 'food')" class="mt-auto bg-red-600 text-white w-full py-2 rounded-xl text-xs font-bold mt-2 hover:bg-red-700 transition">สั่งเลย</button></div>`);
         drinks.forEach(d => document.getElementById('contentDrink').innerHTML += `<div class="bg-white rounded-2xl shadow-sm border p-2 flex flex-col"><img src="${d.img}" class="menu-img"><h2 class="font-bold text-sm mt-2">${d.name}</h2><p class="text-red-600 font-bold text-sm">${d.price} บาท</p><button onclick="openModal('${d.name}', ${d.price}, 'drink')" class="mt-auto bg-red-600 text-white w-full py-2 rounded-xl text-xs font-bold mt-2 hover:bg-red-700 transition">สั่งเลย</button></div>`);
 
@@ -163,6 +182,7 @@
             quantity = 1; 
             document.getElementById('modalTitle').innerText = `${n} (${p} บ.)`; 
             document.getElementById('qty').innerText = quantity; 
+            document.getElementById('customNote').value = ""; // รีเซ็ตช่องกรอกหมายเหตุ
             
             if (type === 'food') {
                 document.getElementById('foodOptions').classList.remove('hidden');
@@ -212,6 +232,12 @@
                 }
             }
 
+            // เพิ่มหมายเหตุที่ลูกค้าพิมพ์เองเข้าไปด้วย
+            const customNote = document.getElementById('customNote').value.trim();
+            if (customNote) {
+                noteText += (noteText ? ", " : "") + customNote;
+            }
+
             cart.push({ 
                 name: currentMenu, 
                 price: finalPrice, 
@@ -234,7 +260,57 @@
             document.getElementById('cartModal').classList.toggle('hidden'); 
         }
 
-        function sendOrder() { if(customerName === "") { alert("กรุณาระบุชื่อก่อนครับ"); return; } socket.emit('new-order', { name: customerName, items: cart }); alert("ส่งออเดอร์แล้ว!"); cart = []; updateUI(); toggleCart(); }
+        function sendOrder() { 
+            if(customerName === "") { alert("กรุณาระบุชื่อก่อนครับ"); return; }
+            if(cart.length === 0) { alert("ตะกร้าว่างเปล่าครับ"); return; }
+            
+            const orderId = 'ORD-' + Date.now();
+            const newOrderData = { id: orderId, name: customerName, items: cart, status: 'รอดำเนินการ' };
+            
+            socket.emit('new-order', newOrderData);
+            
+            myOrders.push(newOrderData);
+            localStorage.setItem('myOrders', JSON.stringify(myOrders));
+
+            alert("ส่งออเดอร์เรียบร้อย!"); 
+            cart = []; 
+            updateUI(); 
+            toggleCart(); 
+        }
+
+        function toggleTrackingModal() {
+            const list = document.getElementById('trackingList');
+            if(myOrders.length === 0) {
+                list.innerHTML = `<p class="text-center text-gray-400 italic">ยังไม่มีประวัติการสั่งซื้อ</p>`;
+            } else {
+                list.innerHTML = myOrders.map(o => {
+                    let itemsStr = o.items.map(i => `${i.name} x${i.qty} (${i.note || '-'})`).join('<br>');
+                    let canCancel = o.status === 'รอดำเนินการ';
+                    return `
+                        <div class="border rounded-2xl p-3 text-sm bg-gray-50 shadow-sm relative">
+                            <div class="flex justify-between font-bold mb-1">
+                                <span>ออเดอร์ #${o.id.slice(-4)}</span>
+                                <span class="${o.status === 'เสิร์ฟแล้ว' ? 'text-green-600' : 'text-amber-600'}">${o.status}</span>
+                            </div>
+                            <div class="text-gray-600 mb-2">${itemsStr}</div>
+                            ${canCancel ? `<button onclick="cancelOrder('${o.id}')" class="w-full bg-red-100 text-red-600 py-1.5 rounded-xl font-bold text-xs hover:bg-red-200 transition">ยกเลิกออเดอร์นี้</button>` : ''}
+                        </div>
+                    `;
+                }).join('');
+            }
+            document.getElementById('trackingModal').classList.toggle('hidden');
+        }
+
+        function cancelOrder(orderId) {
+            if(confirm("คุณต้องการยกเลิกออเดอร์นี้ใช่หรือไม่?")) {
+                myOrders = myOrders.filter(o => o.id !== orderId);
+                localStorage.setItem('myOrders', JSON.stringify(myOrders));
+                toggleTrackingModal();
+                toggleTrackingModal();
+                alert("ยกเลิกออเดอร์เรียบร้อยแล้ว");
+            }
+        }
+
         function switchTab(t) { document.getElementById('contentFood').classList.toggle('hidden', t !== 'food'); document.getElementById('contentDrink').classList.toggle('hidden', t !== 'drink'); document.getElementById('tabFood').className = t === 'food' ? "flex-1 bg-red-600 text-white py-2 rounded-lg font-bold transition-all" : "flex-1 text-gray-600 py-2 rounded-lg transition-all"; document.getElementById('tabDrink').className = t === 'drink' ? "flex-1 bg-red-600 text-white py-2 rounded-lg font-bold transition-all" : "flex-1 text-gray-600 py-2 rounded-lg transition-all"; }
     </script>
 </body>
