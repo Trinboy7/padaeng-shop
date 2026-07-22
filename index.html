@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ร้านป้าแดงตามสั่ง</title>
-    <script src="https://i.pinimg.com/736x/66/ec/2f/66ec2fe662776b01e761681253bc8839.jpg"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700&display=swap" rel="stylesheet">
     <style> 
         body { font-family: 'Sarabun', sans-serif; } 
@@ -20,9 +20,11 @@
 </head>
 <body class="bg-gray-50 min-h-screen pb-24">
 
-    <!-- Modal เลือกชื่อและโต๊ะ -->
+    <!-- Modal เลือกชื่อและโต๊ะ (ใส่โลโก้เดิมของคุณแล้ว) -->
     <div id="nameModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
-        <div class="bg-white w-full max-w-sm rounded-[35px] p-8 text-center shadow-2xl border-4 border-red-100 animate-bounce-in">
+        <div class="bg-white w-full max-w-sm rounded-[35px] p-8 text-center shadow-2xl border-4 border-red-100 animate-bounce-in relative overflow-hidden">
+            <img src="https://i.pinimg.com/736x/66/ec/2f/66ec2fe662776b01e761681253bc8839.jpg" class="w-24 h-24 rounded-full mx-auto mb-4 object-cover border-4 border-red-600 shadow-md">
+            
             <h1 class="text-2xl font-bold text-gray-800 mb-1">ยินดีต้อนรับสู่ร้านป้าแดง</h1>
             <p class="text-gray-400 text-sm mb-6">กรุณาระบุชื่อและเบอร์โต๊ะครับ</p>
             
@@ -40,9 +42,10 @@
         </div>
     </div>
 
-    <!-- Header -->
+    <!-- Header (มีโลโก้เดิมของคุณ) -->
     <div class="bg-white p-3 shadow-sm flex items-center justify-between sticky top-0 z-50">
         <div class="flex items-center gap-3">
+            <img src="https://i.pinimg.com/736x/66/ec/2f/66ec2fe662776b01e761681253bc8839.jpg" class="w-10 h-10 rounded-full object-cover border-2 border-red-600">
             <div>
                 <h1 class="text-base font-bold text-gray-800">ร้านป้าแดงตามสั่ง</h1>
                 <p id="orderStatus" class="text-xs text-red-600 font-bold">ยังไม่ได้ระบุชื่อ</p>
