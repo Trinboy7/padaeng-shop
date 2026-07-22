@@ -77,7 +77,7 @@
     <div id="contentFood" class="grid grid-cols-2 gap-4 p-4"></div>
     <div id="contentDrink" class="grid grid-cols-2 gap-4 p-4 hidden"></div>
     
-    <!-- Order Modal (เพิ่มช่องพิมพ์หมายเหตุพิเศษ) -->
+    <!-- Order Modal -->
     <div id="orderModal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-3xl p-6 w-full max-w-sm animate-bounce-in max-h-[90vh] overflow-y-auto">
             <h2 id="modalTitle" class="text-xl font-bold mb-4"></h2>
@@ -141,7 +141,7 @@
         </div>
     </div>
 
-    <!-- Tracking Modal (หน้าจอติดตามสถานะและยกเลิกออเดอร์) -->
+    <!-- Tracking Modal -->
     <div id="trackingModal" class="fixed inset-0 bg-black/60 hidden z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-3xl p-6 w-full max-w-sm max-h-[80vh] overflow-y-auto animate-bounce-in">
             <h2 class="text-xl font-bold mb-4 text-center">สถานะออเดอร์ของคุณ</h2>
@@ -182,7 +182,7 @@
             quantity = 1; 
             document.getElementById('modalTitle').innerText = `${n} (${p} บ.)`; 
             document.getElementById('qty').innerText = quantity; 
-            document.getElementById('customNote').value = ""; // รีเซ็ตช่องกรอกหมายเหตุ
+            document.getElementById('customNote').value = "";
             
             if (type === 'food') {
                 document.getElementById('foodOptions').classList.remove('hidden');
@@ -232,7 +232,6 @@
                 }
             }
 
-            // เพิ่มหมายเหตุที่ลูกค้าพิมพ์เองเข้าไปด้วย
             const customNote = document.getElementById('customNote').value.trim();
             if (customNote) {
                 noteText += (noteText ? ", " : "") + customNote;
@@ -303,6 +302,10 @@
 
         function cancelOrder(orderId) {
             if(confirm("คุณต้องการยกเลิกออเดอร์นี้ใช่หรือไม่?")) {
+                const orderToCancel = myOrders.find(o => o.id === orderId);
+                if (orderToCancel) {
+                    socket.emit('cancel-order', { orderId: orderToCancel.id, name: customerName });
+                }
                 myOrders = myOrders.filter(o => o.id !== orderId);
                 localStorage.setItem('myOrders', JSON.stringify(myOrders));
                 toggleTrackingModal();
