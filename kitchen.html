@@ -30,23 +30,21 @@
         let receiptHistory = JSON.parse(localStorage.getItem('receiptHistory') || '[]');
         let activeOrders = {}; 
 
-        // ค้นหาฟังก์ชันนี้ใน kitchen.html แล้วแก้ไขให้เป็นแบบนี้:
-socket.on('update-kitchen', (newOrder) => {
-    // เปลี่ยนจาก newOrder.table เป็น newOrder.name ที่ส่งมาจากหน้า index.html
-    const table = newOrder.name || "ไม่ระบุชื่อ"; 
-    
-    if (!activeOrders[table]) activeOrders[table] = { items: {}, table: table };
-    
-    newOrder.items.forEach(item => {
-        const key = item.name + (item.note || "");
-        if (activeOrders[table].items[key]) {
-            activeOrders[table].items[key].qty += item.qty;
-        } else {
-            activeOrders[table].items[key] = { ...item };
-        }
-    });
-    renderOrders();
-});
+        socket.on('update-kitchen', (newOrder) => {
+            const table = newOrder.name || "ไม่ระบุชื่อ"; 
+            
+            if (!activeOrders[table]) activeOrders[table] = { items: {}, table: table };
+            
+            newOrder.items.forEach(item => {
+                const key = item.name + (item.note || "");
+                if (activeOrders[table].items[key]) {
+                    activeOrders[table].items[key].qty += item.qty;
+                } else {
+                    activeOrders[table].items[key] = { ...item };
+                }
+            });
+            renderOrders();
+        });
 
         function renderOrders() {
             const list = document.getElementById('order-list');
@@ -61,9 +59,19 @@ socket.on('update-kitchen', (newOrder) => {
             tables.forEach(table => {
                 const order = activeOrders[table];
                 let totalAmount = 0;
+                
+                // เพิ่มการแสดงผล note (ระดับความเผ็ด, พิเศษ, ระดับความหวาน)
                 const itemsHtml = Object.values(order.items).map(item => {
                     totalAmount += (item.price * item.qty);
-                    return `<li class="flex justify-between text-sm border-b py-1"><span>${item.name}</span><span class="font-bold">x${item.qty}</span></li>`;
+                    return `
+                        <li class="border-b py-2 text-sm">
+                            <div class="flex justify-between font-bold">
+                                <span>${item.name}</span>
+                                <span>x${item.qty}</span>
+                            </div>
+                            ${item.note ? `<div class="text-xs text-red-600 mt-0.5">↳ (${item.note})</div>` : ''}
+                        </li>
+                    `;
                 }).join('');
 
                 const div = document.createElement('div');
