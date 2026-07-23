@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>ห้องครัว - ร้านป้าแดง</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700&display=swap" rel="stylesheet">
     <style> body { font-family: 'Sarabun', sans-serif; } </style>
 </head>
@@ -14,12 +15,8 @@
             <p id="currentDateDisplay" class="text-amber-300 text-sm mt-1"></p>
         </div>
         <div class="flex gap-2 flex-wrap items-center">
-            <!-- ปุ่มสลับโหมดมืด/สว่าง -->
             <button onclick="toggleDarkMode()" id="darkModeBtn" class="bg-gray-800 text-amber-400 px-4 py-2 rounded-full font-bold shadow-lg border border-amber-400 transition">🌙 โหมดมืด</button>
-            
-            <!-- ปุ่มล้างข้อมูลทั้งหมดสำหรับเทสตอนพรีเซนต์ครู -->
             <button onclick="resetAllData()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-full font-bold shadow-lg transition">🗑️ ล้างข้อมูลทั้งหมด</button>
-
             <a href="admin.html" class="bg-blue-600 hover:bg-blue-700 px-5 py-2 rounded-full font-bold shadow-lg transition">จัดการเมนู/สต็อก</a>
             <button onclick="toggleReceiptModal()" class="bg-amber-500 hover:bg-amber-600 px-5 py-2 rounded-full font-bold shadow-lg transition">สรุปยอดขาย</button>
         </div>
@@ -27,7 +24,7 @@
 
     <div id="order-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
 
-    <!-- Modal สรุปยอดขาย (แบบปุ่มรายวัน) -->
+    <!-- Modal สรุปยอดขาย -->
     <div id="receiptModal" class="hidden fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4">
         <div class="bg-white text-red-900 rounded-3xl p-6 w-full max-w-md max-h-[85vh] overflow-y-auto shadow-2xl">
             <h2 id="modalHeaderTitle" class="text-2xl font-bold mb-4 text-center">📅 เลือกวันที่ต้องการดูยอดขาย</h2>
@@ -36,19 +33,21 @@
         </div>
     </div>
 
-    <!-- เสียงแจ้งเตือนออเดอร์เข้า (ใช้เสียงกริ่งออนไลน์ฟรี) -->
     <audio id="alertSound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
+        // ตั้งค่าเชื่อมต่อ Supabase
+        const SUPABASE_URL = 'https://krvynzzupojvyoyhzrz.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_LwvLAs1QkK46D_4F30V43Q_j40I2uQ7';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
         const socket = io();
-        let receiptHistory = JSON.parse(localStorage.getItem('receiptHistory') || '[]');
         let activeOrders = {}; 
 
         const todayDateStr = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'numeric', day: 'numeric' });
         document.getElementById('currentDateDisplay').innerText = `📅 วันที่ปัจจุบัน: ${todayDateStr}`;
 
-        // ระบบรับออเดอร์ใหม่ พร้อมเล่นเสียงแจ้งเตือน
         socket.on('update-kitchen', (newOrder) => {
             activeOrders[newOrder.id] = newOrder;
             playAlertSound();
@@ -62,7 +61,7 @@
 
         function playAlertSound() {
             const sound = document.getElementById('alertSound');
-            sound.play().catch(e => console.log("浏览器限制自动播放เสียง", e));
+            sound.play().catch(e => console.log("Audio play restricted", e));
         }
 
         function updateStatus(id, newStatus) {
@@ -105,37 +104,41 @@
             });
         }
 
-        function finishOrder(id, total) {
+        // บันทึกออเดอร์ที่เสิร์ฟแล้วลง Supabase Cloud
+        async function finishOrder(id, total) {
             const order = activeOrders[id];
             socket.emit('update-status', { orderId: id, status: 'เสิร์ฟแล้ว' });
             
-            receiptHistory.push({ 
-                table: order.table, 
-                name: order.name, 
-                items: order.items, 
-                total, 
-                date: todayDateStr, 
-                timestamp: Date.now() 
-            });
-            
-            localStorage.setItem('receiptHistory', JSON.stringify(receiptHistory));
+            const { error } = await supabase
+                .from('orders')
+                .insert([{
+                    order_id: order.id,
+                    table_name: order.table,
+                    customer_name: order.name,
+                    items: order.items,
+                    total: total,
+                    sale_date: todayDateStr
+                }]);
+
+            if (error) {
+                console.error("บันทึกข้อมูลลง Supabase ไม่สำเร็จ:", error);
+                alert("เกิดข้อผิดพลาดในการบันทึกข้อมูลลง Cloud");
+            } else {
+                console.log("บันทึกยอดขายลง Supabase สำเร็จ!");
+            }
+
             delete activeOrders[id];
             renderOrders();
         }
 
-        // ฟังก์ชันล้างข้อมูลทั้งหมดสำหรับตอนพรีเซนต์ครู
         function resetAllData() {
-            if(confirm("⚠️ คุณต้องการล้างข้อมูลออเดอร์และประวัติการขายทั้งหมดเพื่อเริ่มต้นใหม่ใช่หรือไม่?")) {
-                localStorage.removeItem('receiptHistory');
-                localStorage.removeItem('myOrders');
-                receiptHistory = [];
+            if(confirm("⚠️ คุณต้องการล้างข้อมูลออเดอร์ในหน้าจอทั้งหมดใช่หรือไม่?")) {
                 activeOrders = {};
                 renderOrders();
-                alert("ล้างข้อมูลทั้งหมดเรียบร้อยแล้วครับ!");
+                alert("ล้างหน้าจอเรียบร้อยแล้วครับ!");
             }
         }
 
-        // ฟังก์ชันสลับโหมดมืด (Dark Mode)
         let isDarkMode = false;
         function toggleDarkMode() {
             isDarkMode = !isDarkMode;
@@ -150,35 +153,47 @@
             }
         }
 
-        function deleteRecord(timestamp, targetDate) {
+        async function deleteRecord(rowId, targetDate) {
             if(confirm('คุณต้องการลบประวัติรายการนี้ใช่หรือไม่?')) {
-                receiptHistory = receiptHistory.filter(item => item.timestamp !== timestamp);
-                localStorage.setItem('receiptHistory', JSON.stringify(receiptHistory));
-                showDayDetail(targetDate);
+                const { error } = await supabase
+                    .from('orders')
+                    .delete()
+                    .eq('id', rowId);
+
+                if (error) {
+                    console.error("ลบข้อมูลไม่สำเร็จ:", error);
+                } else {
+                    showDayDetail(targetDate);
+                }
             }
         }
 
         function toggleReceiptModal() { showDateList(); document.getElementById('receiptModal').classList.remove('hidden'); }
         function closeReceiptModal() { document.getElementById('receiptModal').classList.add('hidden'); }
 
-        function showDateList() {
+        async function showDateList() {
             document.getElementById('modalHeaderTitle').innerText = "📅 เลือกวันที่ต้องการดูยอดขาย";
             const content = document.getElementById('receiptContent');
 
-            if (receiptHistory.length === 0) {
-                content.innerHTML = '<p class="text-center text-gray-400 py-4">ยังไม่มีประวัติการขาย</p>';
+            const { data: receiptHistory, error } = await supabase
+                .from('orders')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error || !receiptHistory || receiptHistory.length === 0) {
+                content.innerHTML = '<p class="text-center text-gray-400 py-4">ยังไม่มีประวัติการขายบน Cloud</p>';
                 return;
             }
 
             const grouped = receiptHistory.reduce((acc, curr) => {
-                if (!acc[curr.date]) acc[curr.date] = [];
-                acc[curr.date].push(curr);
+                if (!acc[curr.sale_date]) acc[curr.sale_date] = [];
+                acc[curr.sale_date].push(curr);
                 return acc;
             }, {});
 
             let html = '';
             for (const date in grouped) {
-                let dailyTotal = grouped[date].reduce((sum, item) => sum + item.total, 0);
+                let dailyTotal = grouped[date].reduce((sum, item) => sum + Number(item.total), 0);
                 let isToday = (date === todayDateStr);
 
                 html += `
@@ -191,28 +206,38 @@
             content.innerHTML = html;
         }
 
-        function showDayDetail(date) {
+        async function showDayDetail(date) {
             document.getElementById('modalHeaderTitle').innerText = `📊 ยอดขายวันที่ ${date}`;
             const content = document.getElementById('receiptContent');
 
-            const dayItems = receiptHistory.filter(item => item.date === date);
-            let dailyTotal = dayItems.reduce((sum, item) => sum + item.total, 0);
+            const { data: receiptHistory, error } = await supabase
+                .from('orders')
+                .select('*')
+                .eq('sale_date', date)
+                .order('created_at', { ascending: false });
+
+            if (error || !receiptHistory) {
+                content.innerHTML = '<p class="text-center text-red-500">เกิดข้อผิดพลาดในการดึงข้อมูล</p>';
+                return;
+            }
+
+            let dailyTotal = receiptHistory.reduce((sum, item) => sum + Number(item.total), 0);
 
             let html = `<button onclick="showDateList()" class="text-sm font-bold text-blue-600 hover:underline mb-3">⬅️ กลับไปเลือกวัน</button>`;
             html += `<div class="bg-amber-100 p-3 rounded-2xl text-center font-bold text-lg text-amber-900 mb-3">💰 ยอดขายรวม: ${dailyTotal} บาท</div>`;
             
             html += `<div class="space-y-2 max-h-[50vh] overflow-y-auto pr-1">`;
-            dayItems.forEach(item => {
+            receiptHistory.forEach(item => {
                 let itemsSummary = item.items.map(i => `${i.name} x${i.qty}`).join(', ');
                 html += `
                     <div class="flex justify-between items-center p-3 border border-gray-200 rounded-xl bg-gray-50 text-sm text-gray-800">
                         <div>
-                            <span class="font-bold">${item.table} (${item.name})</span><br>
+                            <span class="font-bold">${item.table_name} (${item.customer_name})</span><br>
                             <span class="text-xs text-gray-500">${itemsSummary}</span>
                         </div>
                         <div class="text-right">
                             <span class="font-bold text-red-600">${item.total} บ.</span><br>
-                            <button onclick="deleteRecord(${item.timestamp}, '${date}')" class="text-xs text-red-400 hover:text-red-600 underline">ลบ</button>
+                            <button onclick="deleteRecord(${item.id}, '${date}')" class="text-xs text-red-400 hover:text-red-600 underline">ลบ</button>
                         </div>
                     </div>
                 `;
