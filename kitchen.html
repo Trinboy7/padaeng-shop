@@ -14,8 +14,12 @@
             <p id="currentDateDisplay" class="text-amber-300 text-sm mt-1"></p>
         </div>
         <div class="flex gap-2 flex-wrap items-center">
+            <!-- ปุ่มสลับโหมดมืด/สว่าง -->
             <button onclick="toggleDarkMode()" id="darkModeBtn" class="bg-gray-800 text-amber-400 px-4 py-2 rounded-full font-bold shadow-lg border border-amber-400 transition">🌙 โหมดมืด</button>
+            
+            <!-- ปุ่มล้างข้อมูลทั้งหมดสำหรับเทสตอนพรีเซนต์ครู -->
             <button onclick="resetAllData()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-full font-bold shadow-lg transition">🗑️ ล้างข้อมูลทั้งหมด</button>
+
             <a href="admin.html" class="bg-blue-600 hover:bg-blue-700 px-5 py-2 rounded-full font-bold shadow-lg transition">จัดการเมนู/สต็อก</a>
             <button onclick="toggleReceiptModal()" class="bg-amber-500 hover:bg-amber-600 px-5 py-2 rounded-full font-bold shadow-lg transition">สรุปยอดขาย</button>
         </div>
@@ -23,7 +27,7 @@
 
     <div id="order-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
 
-    <!-- Modal สรุปยอดขาย -->
+    <!-- Modal สรุปยอดขาย (แบบปุ่มรายวัน) -->
     <div id="receiptModal" class="hidden fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4">
         <div class="bg-white text-red-900 rounded-3xl p-6 w-full max-w-md max-h-[85vh] overflow-y-auto shadow-2xl">
             <h2 id="modalHeaderTitle" class="text-2xl font-bold mb-4 text-center">📅 เลือกวันที่ต้องการดูยอดขาย</h2>
@@ -32,16 +36,19 @@
         </div>
     </div>
 
+    <!-- เสียงแจ้งเตือนออเดอร์เข้า (ใช้เสียงกริ่งออนไลน์ฟรี) -->
     <audio id="alertSound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
+        let receiptHistory = JSON.parse(localStorage.getItem('receiptHistory') || '[]');
         let activeOrders = {}; 
 
         const todayDateStr = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'numeric', day: 'numeric' });
         document.getElementById('currentDateDisplay').innerText = `📅 วันที่ปัจจุบัน: ${todayDateStr}`;
 
+        // ระบบรับออเดอร์ใหม่ พร้อมเล่นเสียงแจ้งเตือน
         socket.on('update-kitchen', (newOrder) => {
             activeOrders[newOrder.id] = newOrder;
             playAlertSound();
@@ -55,7 +62,7 @@
 
         function playAlertSound() {
             const sound = document.getElementById('alertSound');
-            sound.play().catch(e => console.log("Audio play restricted", e));
+            sound.play().catch(e => console.log("浏览器限制自动播放เสียง", e));
         }
 
         function updateStatus(id, newStatus) {
@@ -102,29 +109,33 @@
             const order = activeOrders[id];
             socket.emit('update-status', { orderId: id, status: 'เสิร์ฟแล้ว' });
             
-            let receiptHistory = JSON.parse(localStorage.getItem('receiptHistory') || '[]');
-            receiptHistory.push({
-                id: order.id,
-                table: order.table,
-                name: order.name,
-                items: order.items,
-                total: total,
-                date: todayDateStr
+            receiptHistory.push({ 
+                table: order.table, 
+                name: order.name, 
+                items: order.items, 
+                total, 
+                date: todayDateStr, 
+                timestamp: Date.now() 
             });
+            
             localStorage.setItem('receiptHistory', JSON.stringify(receiptHistory));
-
             delete activeOrders[id];
             renderOrders();
         }
 
+        // ฟังก์ชันล้างข้อมูลทั้งหมดสำหรับตอนพรีเซนต์ครู
         function resetAllData() {
-            if(confirm("⚠️ คุณต้องการล้างข้อมูลออเดอร์ในหน้าจอทั้งหมดใช่หรือไม่?")) {
+            if(confirm("⚠️ คุณต้องการล้างข้อมูลออเดอร์และประวัติการขายทั้งหมดเพื่อเริ่มต้นใหม่ใช่หรือไม่?")) {
+                localStorage.removeItem('receiptHistory');
+                localStorage.removeItem('myOrders');
+                receiptHistory = [];
                 activeOrders = {};
                 renderOrders();
-                alert("ล้างหน้าจอเรียบร้อยแล้วครับ!");
+                alert("ล้างข้อมูลทั้งหมดเรียบร้อยแล้วครับ!");
             }
         }
 
+        // ฟังก์ชันสลับโหมดมืด (Dark Mode)
         let isDarkMode = false;
         function toggleDarkMode() {
             isDarkMode = !isDarkMode;
@@ -139,10 +150,9 @@
             }
         }
 
-        function deleteRecord(index, targetDate) {
+        function deleteRecord(timestamp, targetDate) {
             if(confirm('คุณต้องการลบประวัติรายการนี้ใช่หรือไม่?')) {
-                let receiptHistory = JSON.parse(localStorage.getItem('receiptHistory') || '[]');
-                receiptHistory.splice(index, 1);
+                receiptHistory = receiptHistory.filter(item => item.timestamp !== timestamp);
                 localStorage.setItem('receiptHistory', JSON.stringify(receiptHistory));
                 showDayDetail(targetDate);
             }
@@ -154,9 +164,8 @@
         function showDateList() {
             document.getElementById('modalHeaderTitle').innerText = "📅 เลือกวันที่ต้องการดูยอดขาย";
             const content = document.getElementById('receiptContent');
-            let receiptHistory = JSON.parse(localStorage.getItem('receiptHistory') || '[]');
 
-            if(receiptHistory.length === 0) {
+            if (receiptHistory.length === 0) {
                 content.innerHTML = '<p class="text-center text-gray-400 py-4">ยังไม่มีประวัติการขาย</p>';
                 return;
             }
@@ -185,16 +194,15 @@
         function showDayDetail(date) {
             document.getElementById('modalHeaderTitle').innerText = `📊 ยอดขายวันที่ ${date}`;
             const content = document.getElementById('receiptContent');
-            let receiptHistory = JSON.parse(localStorage.getItem('receiptHistory') || '[]');
 
-            let filtered = receiptHistory.map((item, index) => ({ ...item, originalIndex: index })).filter(item => item.date === date);
-            let dailyTotal = filtered.reduce((sum, item) => sum + item.total, 0);
+            const dayItems = receiptHistory.filter(item => item.date === date);
+            let dailyTotal = dayItems.reduce((sum, item) => sum + item.total, 0);
 
             let html = `<button onclick="showDateList()" class="text-sm font-bold text-blue-600 hover:underline mb-3">⬅️ กลับไปเลือกวัน</button>`;
             html += `<div class="bg-amber-100 p-3 rounded-2xl text-center font-bold text-lg text-amber-900 mb-3">💰 ยอดขายรวม: ${dailyTotal} บาท</div>`;
             
             html += `<div class="space-y-2 max-h-[50vh] overflow-y-auto pr-1">`;
-            filtered.forEach(item => {
+            dayItems.forEach(item => {
                 let itemsSummary = item.items.map(i => `${i.name} x${i.qty}`).join(', ');
                 html += `
                     <div class="flex justify-between items-center p-3 border border-gray-200 rounded-xl bg-gray-50 text-sm text-gray-800">
@@ -204,7 +212,7 @@
                         </div>
                         <div class="text-right">
                             <span class="font-bold text-red-600">${item.total} บ.</span><br>
-                            <button onclick="deleteRecord(${item.originalIndex}, '${date}')" class="text-xs text-red-400 hover:text-red-600 underline">ลบ</button>
+                            <button onclick="deleteRecord(${item.timestamp}, '${date}')" class="text-xs text-red-400 hover:text-red-600 underline">ลบ</button>
                         </div>
                     </div>
                 `;
