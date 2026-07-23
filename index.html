@@ -6,18 +6,30 @@
     <title>ร้านป้าแดงตามสั่ง</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700&display=swap" rel="stylesheet">
-    <style> body { font-family: 'Sarabun', sans-serif; } .menu-img { width: 100%; height: 140px; object-fit: cover; border-radius: 1rem; } </style>
+    <style> 
+        body { font-family: 'Sarabun', sans-serif; } 
+        @keyframes bounceIn {
+            0% { transform: scale(0.3); opacity: 0; }
+            50% { transform: scale(1.05); opacity: 1; }
+            70% { transform: scale(0.95); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-bounce-in { animation: bounceIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        .menu-img { width: 100%; height: 140px; object-fit: cover; border-radius: 1rem; }
+    </style>
 </head>
 <body class="bg-gray-50 min-h-screen pb-24">
 
     <!-- Modal เลือกชื่อและโต๊ะ -->
-    <div id="nameModal" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6">
-        <div class="bg-white w-full max-w-sm rounded-3xl p-6 text-center shadow-2xl">
-            <h1 class="text-2xl font-bold text-gray-800 mb-2">ยินดีต้อนรับสู่ร้านป้าแดง</h1>
-            <p class="text-gray-500 text-sm mb-4">กรุณาระบุชื่อและเบอร์โต๊ะครับ</p>
+    <div id="nameModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
+        <div class="bg-white w-full max-w-sm rounded-[35px] p-8 text-center shadow-2xl border-4 border-red-100 animate-bounce-in relative overflow-hidden">
+            <img src="https://i.pinimg.com/736x/66/ec/2f/66ec2fe662776b01e761681253bc8839.jpg" class="w-24 h-24 rounded-full mx-auto mb-4 object-cover border-4 border-red-600 shadow-md">
             
-            <input type="text" id="customerNameInput" placeholder="กรอกชื่อของคุณ..." class="w-full p-3 border-2 border-red-200 rounded-xl text-center text-base mb-4 outline-none focus:border-red-600 font-bold text-red-600">
-            <select id="tableNumberInput" class="w-full p-3 border-2 border-red-200 rounded-xl text-center text-base mb-6 outline-none focus:border-red-600 font-bold text-red-600">
+            <h1 class="text-2xl font-bold text-gray-800 mb-1">ยินดีต้อนรับสู่ร้านป้าแดง</h1>
+            <p class="text-gray-400 text-sm mb-6">กรุณาระบุชื่อและเบอร์โต๊ะครับ</p>
+            
+            <input type="text" id="customerNameInput" placeholder="กรอกชื่อของคุณ..." class="w-full p-3 border-2 border-red-100 rounded-2xl text-center text-base mb-4 bg-red-50/50 font-bold text-red-600 outline-none focus:border-red-600">
+            <select id="tableNumberInput" class="w-full p-3 border-2 border-red-100 rounded-2xl text-center text-base mb-6 bg-red-50/50 font-bold text-red-600 outline-none focus:border-red-600">
                 <option value="">-- เลือกเบอร์โต๊ะ --</option>
                 <option value="โต๊ะ 1">โต๊ะ 1</option>
                 <option value="โต๊ะ 2">โต๊ะ 2</option>
@@ -26,18 +38,21 @@
                 <option value="โต๊ะ 5">โต๊ะ 5</option>
             </select>
 
-            <button onclick="setName()" class="w-full bg-red-600 text-white py-3 rounded-xl font-bold text-lg shadow-lg">เริ่มสั่งอาหาร</button>
+            <button onclick="setName()" class="w-full bg-gradient-to-r from-red-600 to-orange-500 text-white py-3 rounded-2xl font-bold text-lg shadow-lg">เริ่มสั่งอาหาร 🚀</button>
         </div>
     </div>
 
     <!-- Header -->
-    <div class="bg-white p-3 shadow-sm flex items-center justify-between sticky top-0 z-40">
-        <div>
-            <h1 class="text-base font-bold text-gray-800">ร้านป้าแดงตามสั่ง</h1>
-            <p id="orderStatus" class="text-xs text-red-600 font-bold">ยังไม่ได้ระบุชื่อ</p>
+    <div class="bg-white p-3 shadow-sm flex items-center justify-between sticky top-0 z-50">
+        <div class="flex items-center gap-3">
+            <img src="https://i.pinimg.com/736x/66/ec/2f/66ec2fe662776b01e761681253bc8839.jpg" class="w-10 h-10 rounded-full object-cover border-2 border-red-600">
+            <div>
+                <h1 class="text-base font-bold text-gray-800">ร้านป้าแดงตามสั่ง</h1>
+                <p id="orderStatus" class="text-xs text-red-600 font-bold">ยังไม่ได้ระบุชื่อ</p>
+            </div>
         </div>
         <div class="flex gap-2">
-            <button onclick="toggleTrackingModal()" class="bg-amber-500 text-white px-3 py-1 rounded-lg text-xs font-bold">สถานะออเดอร์</button>
+            <button onclick="toggleTrackingModal()" class="bg-amber-500 text-white px-3 py-1 rounded-lg text-xs font-bold shadow">สถานะออเดอร์</button>
             <button onclick="changeName()" class="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg text-xs font-bold border">เปลี่ยนชื่อ</button>
         </div>
     </div>
@@ -52,7 +67,7 @@
     
     <!-- Order Modal -->
     <div id="orderModal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl p-6 w-full max-w-sm">
+        <div class="bg-white rounded-3xl p-6 w-full max-w-sm animate-bounce-in">
             <h2 id="modalTitle" class="text-xl font-bold mb-4"></h2>
             
             <div id="foodOptions" class="space-y-4 mb-4">
@@ -98,15 +113,15 @@
             </div>
             
             <div class="flex gap-2">
-                <button onclick="closeModal()" class="flex-1 py-3 bg-gray-200 rounded-xl font-bold">ยกเลิก</button>
-                <button onclick="addToCart()" class="flex-1 py-3 bg-orange-500 text-white rounded-xl font-bold">ยืนยัน</button>
+                <button onclick="closeModal()" class="flex-1 py-3 bg-gray-200 rounded-2xl font-bold">ยกเลิก</button>
+                <button onclick="addToCart()" class="flex-1 py-3 bg-orange-500 text-white rounded-2xl font-bold">ยืนยัน</button>
             </div>
         </div>
     </div>
 
     <!-- Cart Modal -->
     <div id="cartModal" class="fixed inset-0 bg-black/60 hidden z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl p-6 w-full max-w-sm max-h-[80vh] overflow-y-auto">
+        <div class="bg-white rounded-3xl p-6 w-full max-w-sm max-h-[80vh] overflow-y-auto animate-bounce-in">
             <h2 class="text-xl font-bold mb-4">ตะกร้าของคุณ</h2>
             <div id="cartList" class="space-y-3 mb-4"></div>
             <button onclick="sendOrder()" class="w-full bg-orange-500 text-white py-3 rounded-xl font-bold">ยืนยันสั่งอาหาร</button>
@@ -115,14 +130,14 @@
 
     <!-- Tracking Modal -->
     <div id="trackingModal" class="fixed inset-0 bg-black/60 hidden z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl p-6 w-full max-w-sm max-h-[80vh] overflow-y-auto">
+        <div class="bg-white rounded-3xl p-6 w-full max-w-sm max-h-[80vh] overflow-y-auto animate-bounce-in">
             <h2 class="text-xl font-bold mb-4 text-center">สถานะออเดอร์</h2>
             <div id="trackingList" class="space-y-3 mb-4"></div>
             <button onclick="toggleTrackingModal()" class="w-full bg-gray-300 text-gray-700 py-3 rounded-xl font-bold">ปิด</button>
         </div>
     </div>
 
-    <div class="fixed bottom-0 w-full p-4 bg-white border-t z-30">
+    <div class="fixed bottom-0 w-full p-4 bg-white border-t">
         <button onclick="toggleCart()" id="btnCheckout" class="w-full bg-orange-500 text-white py-4 rounded-xl font-bold text-lg shadow-lg">ดูตะกร้า (0)</button>
     </div>
 
@@ -135,8 +150,6 @@
         
         const foods = [{ name: "กะเพราหมู", price: 50, img: "https://i.pinimg.com/736x/6b/ae/0d/6bae0d7f752ae472f967e6053aea8fe2.jpg" }, { name: "ข้าวผัดหมู", price: 50, img: "https://i.pinimg.com/736x/f4/19/de/f419de37a2237f3b72a02ac08b147d9e.jpg" }, { name: "ข้าวผัดกุ้ง", price: 60, img: "https://i.pinimg.com/736x/68/d0/88/68d08817aa8f47b1520b8abf7cb458fd.jpg" }, { name: "หมูกระเทียม", price: 50, img: "https://i.pinimg.com/736x/0a/f6/4f/0af64f8926e0fdfcb80bfd8c347b3068.jpg" }, { name: "ต้มยำกุ้ง", price: 80, img: "https://i.pinimg.com/736x/88/dc/57/88dc57a2d53e6d2fa10380cfbebd5c57.jpg" }, { name: "ไข่เจียวหมูสับ", price: 40, img: "https://i.pinimg.com/736x/af/27/e6/af27e6a4929d7edd58a1e31c34570592.jpg" }, { name: "ผัดผักบุ้ง", price: 40, img: "https://i.pinimg.com/736x/22/46/fd/2246fdaac023eb3d32df0726b1e9f1da.jpg" }, { name: "ลาบหมู", price: 60, img: "https://i.pinimg.com/736x/25/df/57/25df57d5126dc44b31906b1647e9e678.jpg" }, { name: "ผัดพริกแกง", price: 50, img: "https://i.pinimg.com/736x/f3/f4/26/f3f426fab2d3cc6c46b2368106462aba.jpg" }, { name: "คะน้าหมูกรอบ", price: 60, img: "https://i.pinimg.com/736x/b8/31/bc/b831bc54de20ea048ec5fb88172fd50b.jpg" }, { name: "แกงเขียวหวาน", price: 60, img: "https://i.pinimg.com/736x/a6/c6/84/a6c684eaed17152e3dbdac77e420c55f.jpg" }, { name: "ต้มจืดเต้าหู้", price: 50, img: "https://i.pinimg.com/736x/94/9d/b1/949db11fe9976f74d1031f00c7604b61.jpg" }];
         const drinks = [{ name: "ชาเย็น", price: 25, img: "https://i.pinimg.com/736x/0b/e7/b8/0be7b87d66b4d16ec60455d1d81abbe8.jpg" }, { name: "กาแฟเย็น", price: 30, img: "https://i.pinimg.com/736x/84/b7/35/84b7355734e0e662d3a9fa7ee641ceb5.jpg" }, { name: "น้ำส้ม", price: 25, img: "https://i.pinimg.com/736x/f8/56/5b/f8565b7442a9df396adc387c8555d8b4.jpg" }, { name: "น้ำแตงโมปั่น", price: 35, img: "https://i.pinimg.com/736x/fc/f9/75/fcf9755f4ac42ca6394adb0964d72d8e.jpg" }, { name: "ชามะนาว", price: 25, img: "https://i.pinimg.com/736x/e1/2a/be/e12abe1a7b170214203412397571c289.jpg" }, { name: "น้ำแดงโซดา", price: 25, img: "https://i.pinimg.com/736x/4f/7a/60/4f7a608bd5384c201a6d707b16263616.jpg" }, { name: "นมชมพู", price: 25, img: "https://i.pinimg.com/736x/49/e9/0c/49e90c3e7a08474e057912b5e5a6ce3e.jpg" }, { name: "โกโก้เย็น", price: 30, img: "https://i.pinimg.com/736x/2e/16/1d/2e161df2587bbcf1894ec24e579b8385.jpg" }, { name: "อัญชันมะนาว", price: 30, img: "https://i.pinimg.com/736x/85/ad/2e/85ad2ef9c98aaf765263fb3f0e74de61.jpg" }, { name: "น้ำเปล่า", price: 10, img: "https://i.pinimg.com/736x/81/68/b6/8168b6f71a64c4bd2dba556df2c053f0.jpg" }, { name: "ชาเขียวมัทฉะ", price: 35, img: "https://i.pinimg.com/736x/b2/8b/37/b28b37e9df9dba7a26cdedf4aa8ef781.jpg" }, { name: "น้ำลำไย", price: 30, img: "https://i.pinimg.com/736x/4c/91/19/4c9119ad1690c68057b538be0184ab5d.jpg" }];
-
-        renderMenu();
 
         socket.on('init-soldout', (data) => {
             soldOutMenus = data;
@@ -189,10 +202,7 @@
             document.getElementById('nameModal').classList.add('hidden');
             document.getElementById('orderStatus').innerText = `${customerName} (${tableNo})`;
         }
-
-        function changeName() { 
-            document.getElementById('nameModal').classList.remove('hidden'); 
-        }
+        function changeName() { document.getElementById('nameModal').classList.remove('hidden'); }
         
         function openModal(n, p, type) { 
             currentMenu = n; currentPrice = p; currentType = type; quantity = 1; 
@@ -272,6 +282,7 @@
                 let itemsStr = o.items.map(i => `${i.name} x${i.qty} (${i.note || '-'})`).join('<br>');
                 let canCancel = o.status === 'รอดำเนินการ';
                 
+                // ตรวจสอบสถานะเพื่อแสดงผลข้อความพิเศษตอนอาหารเสิร์ฟแล้ว
                 let statusBadge = `<span class="text-amber-600">${o.status}</span>`;
                 if(o.status === 'เสิร์ฟแล้ว') {
                     statusBadge = `<span class="text-green-600 font-bold bg-green-50 px-2 py-1 rounded-lg">อาหารมาเสิร์ฟที่โต๊ะแล้ว ทานให้อร่อยนะครับ 😋</span>`;
