@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <title>ห้องครัว - ร้านป้าแดง</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700&display=swap" rel="stylesheet">
     <style> body { font-family: 'Sarabun', sans-serif; } </style>
 </head>
@@ -37,11 +36,6 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        // ตั้งค่าเชื่อมต่อ Supabase
-        const SUPABASE_URL = 'https://krvynzzupojvyoyhzrz.supabase.co';
-        const SUPABASE_ANON_KEY = 'sb_publishable_LwvLAs1QkK46D_4F30V43Q_j40I2uQ7';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
         const socket = io();
         let activeOrders = {}; 
 
@@ -104,28 +98,20 @@
             });
         }
 
-        // บันทึกออเดอร์ที่เสิร์ฟแล้วลง Supabase Cloud
-        async function finishOrder(id, total) {
+        function finishOrder(id, total) {
             const order = activeOrders[id];
             socket.emit('update-status', { orderId: id, status: 'เสิร์ฟแล้ว' });
             
-            const { error } = await supabase
-                .from('orders')
-                .insert([{
-                    order_id: order.id,
-                    table_name: order.table,
-                    customer_name: order.name,
-                    items: order.items,
-                    total: total,
-                    sale_date: todayDateStr
-                }]);
-
-            if (error) {
-                console.error("บันทึกข้อมูลลง Supabase ไม่สำเร็จ:", error);
-                alert("เกิดข้อผิดพลาดในการบันทึกข้อมูลลง Cloud");
-            } else {
-                console.log("บันทึกยอดขายลง Supabase สำเร็จ!");
-            }
+            let receiptHistory = JSON.parse(localStorage.getItem('receiptHistory') || '[]');
+            receiptHistory.push({
+                id: order.id,
+                table: order.table,
+                name: order.name,
+                items: order.items,
+                total: total,
+                date: todayDateStr
+            });
+            localStorage.setItem('receiptHistory', JSON.stringify(receiptHistory));
 
             delete activeOrders[id];
             renderOrders();
@@ -153,47 +139,37 @@
             }
         }
 
-        async function deleteRecord(rowId, targetDate) {
+        function deleteRecord(index, targetDate) {
             if(confirm('คุณต้องการลบประวัติรายการนี้ใช่หรือไม่?')) {
-                const { error } = await supabase
-                    .from('orders')
-                    .delete()
-                    .eq('id', rowId);
-
-                if (error) {
-                    console.error("ลบข้อมูลไม่สำเร็จ:", error);
-                } else {
-                    showDayDetail(targetDate);
-                }
+                let receiptHistory = JSON.parse(localStorage.getItem('receiptHistory') || '[]');
+                receiptHistory.splice(index, 1);
+                localStorage.setItem('receiptHistory', JSON.stringify(receiptHistory));
+                showDayDetail(targetDate);
             }
         }
 
         function toggleReceiptModal() { showDateList(); document.getElementById('receiptModal').classList.remove('hidden'); }
         function closeReceiptModal() { document.getElementById('receiptModal').classList.add('hidden'); }
 
-        async function showDateList() {
+        function showDateList() {
             document.getElementById('modalHeaderTitle').innerText = "📅 เลือกวันที่ต้องการดูยอดขาย";
             const content = document.getElementById('receiptContent');
+            let receiptHistory = JSON.parse(localStorage.getItem('receiptHistory') || '[]');
 
-            const { data: receiptHistory, error } = await supabase
-                .from('orders')
-                .select('*')
-                .order('created_at', { ascending: false });
-
-            if (error || !receiptHistory || receiptHistory.length === 0) {
-                content.innerHTML = '<p class="text-center text-gray-400 py-4">ยังไม่มีประวัติการขายบน Cloud</p>';
+            if(receiptHistory.length === 0) {
+                content.innerHTML = '<p class="text-center text-gray-400 py-4">ยังไม่มีประวัติการขาย</p>';
                 return;
             }
 
             const grouped = receiptHistory.reduce((acc, curr) => {
-                if (!acc[curr.sale_date]) acc[curr.sale_date] = [];
-                acc[curr.sale_date].push(curr);
+                if (!acc[curr.date]) acc[curr.date] = [];
+                acc[curr.date].push(curr);
                 return acc;
             }, {});
 
             let html = '';
             for (const date in grouped) {
-                let dailyTotal = grouped[date].reduce((sum, item) => sum + Number(item.total), 0);
+                let dailyTotal = grouped[date].reduce((sum, item) => sum + item.total, 0);
                 let isToday = (date === todayDateStr);
 
                 html += `
@@ -206,38 +182,29 @@
             content.innerHTML = html;
         }
 
-        async function showDayDetail(date) {
+        function showDayDetail(date) {
             document.getElementById('modalHeaderTitle').innerText = `📊 ยอดขายวันที่ ${date}`;
             const content = document.getElementById('receiptContent');
+            let receiptHistory = JSON.parse(localStorage.getItem('receiptHistory') || '[]');
 
-            const { data: receiptHistory, error } = await supabase
-                .from('orders')
-                .select('*')
-                .eq('sale_date', date)
-                .order('created_at', { ascending: false });
-
-            if (error || !receiptHistory) {
-                content.innerHTML = '<p class="text-center text-red-500">เกิดข้อผิดพลาดในการดึงข้อมูล</p>';
-                return;
-            }
-
-            let dailyTotal = receiptHistory.reduce((sum, item) => sum + Number(item.total), 0);
+            let filtered = receiptHistory.map((item, index) => ({ ...item, originalIndex: index })).filter(item => item.date === date);
+            let dailyTotal = filtered.reduce((sum, item) => sum + item.total, 0);
 
             let html = `<button onclick="showDateList()" class="text-sm font-bold text-blue-600 hover:underline mb-3">⬅️ กลับไปเลือกวัน</button>`;
             html += `<div class="bg-amber-100 p-3 rounded-2xl text-center font-bold text-lg text-amber-900 mb-3">💰 ยอดขายรวม: ${dailyTotal} บาท</div>`;
             
             html += `<div class="space-y-2 max-h-[50vh] overflow-y-auto pr-1">`;
-            receiptHistory.forEach(item => {
+            filtered.forEach(item => {
                 let itemsSummary = item.items.map(i => `${i.name} x${i.qty}`).join(', ');
                 html += `
                     <div class="flex justify-between items-center p-3 border border-gray-200 rounded-xl bg-gray-50 text-sm text-gray-800">
                         <div>
-                            <span class="font-bold">${item.table_name} (${item.customer_name})</span><br>
+                            <span class="font-bold">${item.table} (${item.name})</span><br>
                             <span class="text-xs text-gray-500">${itemsSummary}</span>
                         </div>
                         <div class="text-right">
                             <span class="font-bold text-red-600">${item.total} บ.</span><br>
-                            <button onclick="deleteRecord(${item.id}, '${date}')" class="text-xs text-red-400 hover:text-red-600 underline">ลบ</button>
+                            <button onclick="deleteRecord(${item.originalIndex}, '${date}')" class="text-xs text-red-400 hover:text-red-600 underline">ลบ</button>
                         </div>
                     </div>
                 `;
