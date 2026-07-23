@@ -22,9 +22,9 @@
 <body class="bg-gray-50 min-h-screen pb-24">
 
     <!-- Modal เลือกชื่อและโต๊ะ -->
-    <div id="nameModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
-        <div class="bg-white w-full max-w-sm rounded-[35px] p-8 text-center shadow-2xl border-4 border-red-100 animate-bounce-in relative overflow-hidden">
-            <img src="https://i.pinimg.com/736x/66/ec/2f/66ec2fe662776b01e761681253bc8839.jpg" class="w-24 h-24 rounded-full mx-auto mb-4 object-cover border-4 border-red-600 shadow-md">
+    <div id="nameModal" class="fixed inset-0 bg-black/70 z-[999] flex items-center justify-center p-6">
+        <div class="bg-white w-full max-w-sm rounded-[35px] p-8 text-center shadow-2xl border-4 border-red-100 animate-bounce-in relative">
+            <div class="w-20 h-20 bg-red-600 rounded-full mx-auto mb-4 flex items-center justify-center text-white text-3xl font-bold shadow-md">🍽️</div>
             
             <h1 class="text-2xl font-bold text-gray-800 mb-1">ยินดีต้อนรับสู่ร้านป้าแดง</h1>
             <p class="text-gray-400 text-sm mb-6">กรุณาระบุชื่อและเบอร์โต๊ะครับ</p>
@@ -39,14 +39,14 @@
                 <option value="โต๊ะ 5">โต๊ะ 5</option>
             </select>
 
-            <button onclick="setName()" class="w-full bg-gradient-to-r from-red-600 to-orange-500 text-white py-3 rounded-2xl font-bold text-lg shadow-lg">เริ่มสั่งอาหาร 🚀</button>
+            <button onclick="setName()" class="w-full bg-gradient-to-r from-red-600 to-orange-500 text-white py-3 rounded-2xl font-bold text-lg shadow-lg cursor-pointer">เริ่มสั่งอาหาร 🚀</button>
         </div>
     </div>
 
     <!-- Header -->
-    <div class="bg-white p-3 shadow-sm flex items-center justify-between sticky top-0 z-50">
+    <div class="bg-white p-3 shadow-sm flex items-center justify-between sticky top-0 z-40">
         <div class="flex items-center gap-3">
-            <img src="https://i.pinimg.com/736x/66/ec/2f/66ec2fe662776b01e761681253bc8839.jpg" class="w-10 h-10 rounded-full object-cover border-2 border-red-600">
+            <div class="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center text-white font-bold">🍽️</div>
             <div>
                 <h1 class="text-base font-bold text-gray-800">ร้านป้าแดงตามสั่ง</h1>
                 <p id="orderStatus" class="text-xs text-red-600 font-bold">ยังไม่ได้ระบุชื่อ</p>
@@ -138,19 +138,18 @@
         </div>
     </div>
 
-    <div class="fixed bottom-0 w-full p-4 bg-white border-t">
+    <div class="fixed bottom-0 w-full p-4 bg-white border-t z-30">
         <button onclick="toggleCart()" id="btnCheckout" class="w-full bg-orange-500 text-white py-4 rounded-xl font-bold text-lg shadow-lg">ดูตะกร้า (0)</button>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        // ตั้งค่าเชื่อมต่อ Supabase
         const SUPABASE_URL = 'https://krvynzzupojvyoyhzrz.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_LwvLAs1QkK46D_4F30V43Q_j40I2uQ7';
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         const socket = io();
-        let cart = [], currentMenu = "", currentPrice = "", currentType = "", quantity = 1, customerName = "", tableNo = "";
+        let cart = [], currentMenu = "", currentPrice = 0, currentType = "", quantity = 1, customerName = "", tableNo = "";
         let myOrders = JSON.parse(localStorage.getItem('myOrders') || '[]');
         let soldOutMenus = {};
         
@@ -170,7 +169,7 @@
                     <img src="${f.img}" class="menu-img">
                     <h2 class="font-bold text-sm mt-2">${f.name}</h2>
                     <p class="text-red-600 font-bold text-sm">${f.price} บาท</p>
-                    <button onclick="openModal('${f.name}', ${f.price}, 'food')" ${isSoldOut ? 'disabled' : ''} class="mt-auto ${isSoldOut ? 'bg-gray-400' : 'bg-red-600 hover:bg-red-700'} text-white w-full py-2 rounded-xl text-xs font-bold mt-2">สั่งเลย</button>
+                    <button onclick="openModal('${f.name}', ${f.price}, 'food')" ${isSoldOut ? 'disabled' : ''} class="mt-auto ${isSoldOut ? 'bg-gray-400' : 'bg-red-600 hover:bg-red-700'} text-white w-full py-2 rounded-xl text-xs font-bold mt-2 cursor-pointer">สั่งเลย</button>
                 </div>`;
             }).join('');
 
@@ -181,7 +180,7 @@
                     <img src="${d.img}" class="menu-img">
                     <h2 class="font-bold text-sm mt-2">${d.name}</h2>
                     <p class="text-red-600 font-bold text-sm">${d.price} บาท</p>
-                    <button onclick="openModal('${d.name}', ${d.price}, 'drink')" ${isSoldOut ? 'disabled' : ''} class="mt-auto ${isSoldOut ? 'bg-gray-400' : 'bg-red-600 hover:bg-red-700'} text-white w-full py-2 rounded-xl text-xs font-bold mt-2">สั่งเลย</button>
+                    <button onclick="openModal('${d.name}', ${d.price}, 'drink')" ${isSoldOut ? 'disabled' : ''} class="mt-auto ${isSoldOut ? 'bg-gray-400' : 'bg-red-600 hover:bg-red-700'} text-white w-full py-2 rounded-xl text-xs font-bold mt-2 cursor-pointer">สั่งเลย</button>
                 </div>`;
             }).join('');
         }
